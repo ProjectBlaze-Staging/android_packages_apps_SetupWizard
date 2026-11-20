@@ -3,6 +3,9 @@
      SPDX-FileCopyrightText: 2013 The CyanogenMod Project
      SPDX-FileCopyrightText: The LineageOS Project
      SPDX-License-Identifier: Apache-2.0
+
+     Boot animation and OOBE design concepts are adapted from AmeOS 16 by AmeOS Team (Figma Community), licensed under CC BY 4.0.
+     Credits: AmeOS Team (Maksieku, Stellaris, Pjanda, arkainnit, Joke_Bamb, tmrx, trvhz).
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.lineageos.setupwizard"
@@ -19,6 +22,8 @@
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.GET_ACCOUNTS_PRIVILEGED" />
     <uses-permission android:name="android.permission.READ_PRIVILEGED_PHONE_STATE" />
@@ -272,7 +277,7 @@
         <activity
             android:name=".ThemeSettingsActivity"
             android:label="@string/activity_label_empty"
-            android:configChanges="mcc|mnc"
+            android:configChanges="mcc|mnc|uiMode|orientation|screenSize|keyboardHidden"
             android:immersive="true"
             android:exported="true"
             android:windowSoftInputMode="stateAlwaysHidden">

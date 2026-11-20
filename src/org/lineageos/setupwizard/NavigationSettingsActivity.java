@@ -1,5 +1,6 @@
 /*
  * SPDX-FileCopyrightText: The LineageOS Project
+ * SPDX-FileCopyrightText: 2026 The BlazeAOSP Project
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -12,32 +13,46 @@ import static org.lineageos.internal.util.DeviceKeysConstants.KEY_MASK_APP_SWITC
 import static org.lineageos.setupwizard.SetupWizardApp.DISABLE_NAV_KEYS;
 import static org.lineageos.setupwizard.SetupWizardApp.NAVIGATION_OPTION_KEY;
 
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
+import android.content.Intent;
+import android.graphics.Outline;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.view.View;
+import android.view.ViewOutlineProvider;
+import android.view.WindowInsetsController;
+import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
-
-import com.airbnb.lottie.LottieAnimationView;
+import android.widget.ImageButton;
 
 import lineageos.providers.LineageSettings;
 
+import org.lineageos.setupwizard.util.OobeSpringHelper;
 import org.lineageos.setupwizard.util.SetupWizardUtils;
 
 public class NavigationSettingsActivity extends BaseSetupWizardActivity {
 
     private SetupWizardApp mSetupWizardApp;
-
     private String mSelection = NAV_BAR_MODE_GESTURAL_OVERLAY;
 
+    private View mCardGestures;
+    private View mCardButtons;
     private CheckBox mHideGesturalHint;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        try {
+            getWindow().setStatusBarColor(0xFFF6FCFF);
+            getWindow().setNavigationBarColor(0xFFEDF9FF);
+            WindowInsetsController wic = getWindow().getInsetsController();
+            if (wic != null) {
+                int mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                wic.setSystemBarsAppearance(mask, mask);
+            }
+        } catch (Throwable ignored) {}
 
         mSetupWizardApp = (SetupWizardApp) getApplication();
         boolean navBarEnabled = false;
@@ -49,86 +64,125 @@ public class NavigationSettingsActivity extends BaseSetupWizardActivity {
                 org.lineageos.platform.internal.R.integer.config_deviceHardwareKeys);
         boolean hasHomeKey = (deviceKeys & KEY_MASK_APP_SWITCH) != 0;
 
-        getGlifLayout().setDescriptionText(getString(R.string.navigation_summary));
-        setNextText(R.string.next);
+        mCardGestures = findViewById(R.id.card_nav_gestures);
+        mCardButtons = findViewById(R.id.card_nav_buttons);
+        mHideGesturalHint = findViewById(R.id.hide_navigation_hint);
+        ImageButton backBtn = findViewById(R.id.nav_back_button);
+        Button continueBtn = findViewById(R.id.nav_continue_button);
 
         int available = 3;
-        // Hide unavailable navigation modes
         if (!SetupWizardUtils.isPackageInstalled(this, NAV_BAR_MODE_GESTURAL_OVERLAY)) {
-            findViewById(R.id.radio_gesture).setVisibility(View.GONE);
-            ((RadioButton) findViewById(R.id.radio_sw_keys)).setChecked(true);
+            if (mCardGestures != null) mCardGestures.setVisibility(View.GONE);
+            mSelection = NAV_BAR_MODE_3BUTTON_OVERLAY;
             available--;
         }
-
         if (!SetupWizardUtils.isPackageInstalled(this, NAV_BAR_MODE_3BUTTON_OVERLAY)) {
-            findViewById(R.id.radio_sw_keys).setVisibility(View.GONE);
+            if (mCardButtons != null) mCardButtons.setVisibility(View.GONE);
             available--;
         }
 
-        // Hide this page if the device has hardware keys but didn't enable navbar
-        // or if there's <= 1 available navigation modes
         if (!navBarEnabled && hasHomeKey || available <= 1) {
             mSetupWizardApp.getSettingsBundle().putString(NAVIGATION_OPTION_KEY,
                     NAV_BAR_MODE_3BUTTON_OVERLAY);
             finishAction(RESULT_OK);
+            return;
         }
 
-        final LottieAnimationView navigationIllustration =
-                findViewById(R.id.navigation_illustration);
-        final RadioGroup radioGroup = findViewById(R.id.navigation_radio_group);
-        mHideGesturalHint = findViewById(R.id.hide_navigation_hint);
+        clipCardToRounded48(mCardGestures);
+        clipCardToRounded48(mCardButtons);
 
-        radioGroup.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == R.id.radio_gesture) {
-                mSelection = NAV_BAR_MODE_GESTURAL_OVERLAY;
-                navigationIllustration.setAnimation(R.raw.lottie_system_nav_fully_gestural);
-                revealHintCheckbox();
-            } else if (checkedId == R.id.radio_sw_keys) {
-                mSelection = NAV_BAR_MODE_3BUTTON_OVERLAY;
-                navigationIllustration.setAnimation(R.raw.lottie_system_nav_3_button);
-                hideHintCheckBox();
+        if (mCardGestures != null) {
+            OobeSpringHelper.attachPressSpring(mCardGestures);
+            mCardGestures.setOnClickListener(v -> {
+                OobeSpringHelper.vibrateTick(this);
+                selectMode(NAV_BAR_MODE_GESTURAL_OVERLAY);
+            });
+        }
+
+        if (mCardButtons != null) {
+            OobeSpringHelper.attachPressSpring(mCardButtons);
+            mCardButtons.setOnClickListener(v -> {
+                OobeSpringHelper.vibrateTick(this);
+                selectMode(NAV_BAR_MODE_3BUTTON_OVERLAY);
+            });
+        }
+
+        if (backBtn != null) {
+            OobeSpringHelper.attachPressSpring(backBtn);
+            backBtn.setOnClickListener(v -> {
+                OobeSpringHelper.vibrateTick(this);
+                finishAction(RESULT_CANCELED, new Intent().putExtra("onBackPressed", true));
+            });
+        }
+
+        if (continueBtn != null) {
+            OobeSpringHelper.attachPressSpring(continueBtn);
+            continueBtn.setOnClickListener(v -> {
+                OobeSpringHelper.vibrateSuccess(this);
+                onNextPressed();
+            });
+        }
+
+        selectMode(mSelection);
+    }
+
+    private void clipCardToRounded48(View card) {
+        if (card == null) return;
+        float d = getResources().getDisplayMetrics().density;
+        float outerRadius = 32f * d;
+        float innerRadius = Math.max(0f, outerRadius - 6f * d);
+        card.setClipToOutline(true);
+        card.setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, Outline outline) {
+                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), outerRadius);
             }
-
-            navigationIllustration.playAnimation();
         });
+        if (card instanceof android.view.ViewGroup vg) {
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                View child = vg.getChildAt(i);
+                if (child != null) {
+                    child.setClipToOutline(true);
+                    child.setOutlineProvider(new ViewOutlineProvider() {
+                        @Override
+                        public void getOutline(View view, Outline outline) {
+                            outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), innerRadius);
+                        }
+                    });
+                }
+            }
+        }
     }
 
-    private void revealHintCheckbox() {
-        mHideGesturalHint.animate().cancel();
-
-        if (mHideGesturalHint.getVisibility() == View.VISIBLE) {
-            return;
+    private void selectMode(String mode) {
+        mSelection = mode;
+        boolean isGestures = NAV_BAR_MODE_GESTURAL_OVERLAY.equals(mode);
+        styleSelectionRing(mCardGestures, isGestures);
+        styleSelectionRing(mCardButtons, !isGestures);
+        if (mHideGesturalHint != null) {
+            mHideGesturalHint.setVisibility(isGestures ? View.VISIBLE : View.INVISIBLE);
         }
-
-        mHideGesturalHint.setVisibility(View.VISIBLE);
-        mHideGesturalHint.setAlpha(0.0f);
-        mHideGesturalHint.animate()
-                .translationY(0)
-                .alpha(1.0f)
-                .setListener(null);
     }
 
-    private void hideHintCheckBox() {
-        if (mHideGesturalHint.getVisibility() == View.INVISIBLE) {
-            return;
+    private void styleSelectionRing(View card, boolean active) {
+        if (card == null) return;
+        float d = getResources().getDisplayMetrics().density;
+        GradientDrawable ring = new GradientDrawable();
+        ring.setCornerRadius(32f * d);
+        ring.setColor(0xFF102238);
+        if (active) {
+            // Figma 4:1308: 6dp #02C9FF active selection ring
+            ring.setStroke(Math.round(6f * d), 0xFF02C9FF);
+        } else {
+            ring.setStroke(Math.round(1.5f * d), 0x4460A5FF);
         }
-
-        mHideGesturalHint.animate()
-                .translationY(-mHideGesturalHint.getHeight())
-                .alpha(0.0f)
-                .setListener(new AnimatorListenerAdapter() {
-                    @Override
-                    public void onAnimationEnd(Animator animation) {
-                        super.onAnimationEnd(animation);
-                        mHideGesturalHint.setVisibility(View.INVISIBLE);
-                    }
-                });
+        card.setBackground(ring);
     }
 
     @Override
     protected void onNextPressed() {
         mSetupWizardApp.getSettingsBundle().putString(NAVIGATION_OPTION_KEY, mSelection);
-        boolean hideHint = mHideGesturalHint.isChecked();
+        boolean hideHint = mHideGesturalHint != null && mHideGesturalHint.isChecked();
         LineageSettings.System.putIntForUser(getContentResolver(),
                 LineageSettings.System.NAVIGATION_BAR_HINT, hideHint ? 0 : 1,
                 UserHandle.USER_CURRENT);
@@ -142,11 +196,16 @@ public class NavigationSettingsActivity extends BaseSetupWizardActivity {
 
     @Override
     protected int getTitleResId() {
-        return R.string.setup_navigation;
+        return -1;
     }
 
     @Override
     protected int getIconResId() {
-        return R.drawable.ic_navigation;
+        return -1;
+    }
+
+    @Override
+    protected com.google.android.setupdesign.GlifLayout getGlifLayout() {
+        return null;
     }
 }

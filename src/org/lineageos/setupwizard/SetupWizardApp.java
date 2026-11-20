@@ -66,6 +66,12 @@ public class SetupWizardApp extends Application {
         }
         sStatusBarManager = SetupWizardUtils.disableStatusBar(this);
         mHandler.postDelayed(mRadioTimeoutRunnable, SetupWizardApp.RADIO_READY_TIMEOUT);
+        if (SetupWizardUtils.isOwner()) {
+            try {
+                Settings.System.putFloat(getContentResolver(), "min_refresh_rate", 120.0f);
+                Settings.System.putFloat(getContentResolver(), "peak_refresh_rate", 120.0f);
+            } catch (Throwable ignored) {}
+        }
         if (SetupWizardUtils.hasGMS(this)) {
             SetupWizardUtils.disableHome(this);
             if (SetupWizardUtils.isOwner()) {

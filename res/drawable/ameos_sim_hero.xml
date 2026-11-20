@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="85dp"
+    android:height="78dp"
+    android:viewportWidth="84.7609"
+    android:viewportHeight="77.4893">
+    <!-- Figma 4:1289 Clean 3D Hollow Blue SIM Tray Hero Icon (NO inner 4-square grid) -->
+    <path
+        android:pathData="M80.7656,0C82.9719,0.0002 84.7606,1.7889 84.7607,3.9951V73.4941C84.7607,75.7005 82.9719,77.4891 80.7656,77.4893C78.5592,77.4893 76.7705,75.7006 76.7705,73.4941V70.9492H15.6328C6.999,70.9492 0,63.9502 0,55.3164V19.2412C0,9.9434 7.5372,2.4055 16.835,2.4053H77.0996C77.7143,0.9901 79.1244,0 80.7656,0ZM16.835,12.9395C13.3551,12.9397 10.5342,15.7613 10.5342,19.2412V55.3164C10.5342,58.1323 12.8169,60.415 15.6328,60.415H72.4404V29.5439L54.96,12.9395H16.835Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="40.868"
+                android:startY="0"
+                android:endX="40.868"
+                android:endY="77.489"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF02C9FF" />
+                <item android:offset="1.0" android:color="#FF015BFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

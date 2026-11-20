@@ -2,38 +2,106 @@
 <!--
      SPDX-FileCopyrightText: 2015 The CyanogenMod Project
      SPDX-FileCopyrightText: The LineageOS Project
+     SPDX-FileCopyrightText: 2026 The BlazeAOSP Project
      SPDX-License-Identifier: Apache-2.0
 -->
-<com.google.android.setupdesign.GlifLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/setup_wizard_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@drawable/ameos_sky_canvas"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingStart="30dp"
+    android:paddingTop="56dp"
+    android:paddingEnd="30dp"
+    android:paddingBottom="26dp">
 
-    <LinearLayout
-        android:orientation="vertical"
+    <!-- 95dp 3D Hollow Blue SIM Tray Hero Icon (Figma 4:1288) -->
+    <ImageView
+        android:id="@+id/sim_hero_icon"
+        android:layout_width="95dp"
+        android:layout_height="95dp"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ameos_sim_hero" />
+
+    <!-- Title: Set up your SIM (Figma 4:1297) -->
+    <TextView
+        android:id="@+id/sim_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:fontFamily="sans-serif-medium"
+        android:gravity="center"
+        android:letterSpacing="-0.02"
+        android:text="Set up your SIM"
+        android:textColor="#203A51"
+        android:textSize="28sp"
+        android:textStyle="bold" />
+
+    <!-- Subtitle: Please insert a SIM card to your phone to its full potential. (Figma 4:1298) -->
+    <TextView
+        android:id="@+id/sim_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:lineSpacingExtra="2dp"
+        android:text="Please insert a SIM card to your phone to its full potential."
+        android:textColor="#A3203A51"
+        android:textSize="16sp" />
+
+    <!-- Figma 4:1299: #F7FCFF 29dp-radius Card (333x442dp proportion) containing ONLY the 2-Keyframe Phone/SIM Animation -->
+    <FrameLayout
+        android:id="@+id/page"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        style="@style/SudContentFrame">
+        android:layout_height="0dp"
+        android:layout_marginTop="18dp"
+        android:layout_marginBottom="20dp"
+        android:layout_weight="1"
+        android:background="@drawable/ameos_frosted_card"
+        android:elevation="4dp"
+        android:padding="16dp">
 
-        <FrameLayout
-            android:id="@+id/page"
+        <org.lineageos.setupwizard.widget.OobeSimAnimationView
+            android:id="@+id/sim_illustration"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1">
+            android:layout_height="match_parent" />
+    </FrameLayout>
 
-            <LinearLayout
-                android:orientation="vertical"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
+    <!-- Bottom Bar: 44dp soft white circular back button (←) + bottom-right outlined Skip pill button (Figma 4:1285 / 4:1302) -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="54dp">
 
-            </LinearLayout>
-        </FrameLayout>
+        <ImageButton
+            android:id="@+id/sim_back_button"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/ameos_btn_back_circle"
+            android:contentDescription="Back"
+            android:elevation="4dp"
+            android:padding="10dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_chevron_left_24dp"
+            android:tint="#203A51" />
 
-        <org.lineageos.setupwizard.NavigationLayout
-            android:id="@+id/navigation_bar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+        <Button
+            android:id="@+id/sim_skip_button"
+            android:layout_width="86dp"
+            android:layout_height="53dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/ameos_btn_pill_outline"
+            android:fontFamily="sans-serif-medium"
+            android:stateListAnimator="@null"
+            android:text="Skip"
+            android:textAllCaps="false"
+            android:textColor="#4781FF"
+            android:textSize="15.5sp" />
+    </RelativeLayout>
 
-    </LinearLayout>
-</com.google.android.setupdesign.GlifLayout>
+</LinearLayout>

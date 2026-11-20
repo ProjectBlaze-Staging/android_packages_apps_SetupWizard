@@ -81,11 +81,15 @@ public abstract class BaseSetupWizardActivity extends AppCompatActivity implemen
                 if (LOGV) {
                     Log.v(TAG, "handleOnBackPressed()");
                 }
-                finishAction(RESULT_CANCELED, new Intent().putExtra("onBackPressed", true));
+                onSystemBackPressed();
             }
         });
         // Apply default transition, to take effect whenever leaving this activity.
         applyForwardTransition();
+    }
+
+    protected void onSystemBackPressed() {
+        finishAction(RESULT_CANCELED, new Intent().putExtra("onBackPressed", true));
     }
 
     @Override
@@ -314,6 +318,7 @@ public abstract class BaseSetupWizardActivity extends AppCompatActivity implemen
         if (getLayoutResId() != -1) {
             setContentView(getLayoutResId());
         }
+        applySystemBarsInsetsPadding();
         if (getTitleResId() != -1) {
             final CharSequence headerText = TextUtils.expandTemplate(getText(getTitleResId()));
             getGlifLayout().setHeaderText(headerText);
@@ -324,6 +329,32 @@ public abstract class BaseSetupWizardActivity extends AppCompatActivity implemen
             icon.setTintList(Utils.getColorAccent(layout.getContext()));
             layout.setIcon(icon);
         }
+    }
+
+    private void applySystemBarsInsetsPadding() {
+        final View root = findViewById(R.id.setup_wizard_layout);
+        if (root == null || root instanceof GlifLayout) {
+            return;
+        }
+        final int initialLeft = root.getPaddingLeft();
+        final int initialTop = root.getPaddingTop();
+        final int initialRight = root.getPaddingRight();
+        final int initialBottom = root.getPaddingBottom();
+        root.setOnApplyWindowInsetsListener((v, windowInsets) -> {
+            android.graphics.Insets sysBars = windowInsets.getInsets(
+                    android.view.WindowInsets.Type.systemBars()
+                            | android.view.WindowInsets.Type.displayCutout());
+            float d = getResources().getDisplayMetrics().density;
+            int minTop = Math.max(initialTop, sysBars.top + Math.round(16f * d));
+            int minBottom = initialBottom + sysBars.bottom;
+            v.setPadding(
+                    initialLeft + sysBars.left,
+                    minTop,
+                    initialRight + sysBars.right,
+                    minBottom);
+            return windowInsets;
+        });
+        root.requestApplyInsets();
     }
 
     protected GlifLayout getGlifLayout() {

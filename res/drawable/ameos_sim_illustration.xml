@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="240dp"
+    android:height="200dp"
+    android:viewportWidth="240"
+    android:viewportHeight="200">
+    <!-- Phone wireframe outline -->
+    <path
+        android:fillColor="#FFE8F4FF"
+        android:strokeColor="#FF60A5FF"
+        android:strokeWidth="2.5"
+        android:pathData="M90,20h96c11,0 20,9 20,20v120c0,11 -9,20 -20,20H90c-11,0 -20,-9 -20,-20V40c0,-11 9,-20 20,-20z" />
+    <!-- Inner screen -->
+    <path
+        android:fillColor="#FFF7FCFF"
+        android:strokeColor="#FFA5D1FF"
+        android:strokeWidth="1.5"
+        android:pathData="M96,30h84c6.6,0 12,5.4 12,12v116c0,6.6 -5.4,12 -12,12H96c-6.6,0 -12,-5.4 -12,-12V42c0,-6.6 5.4,-12 12,-12z" />
+    <!-- Dynamic island pill inside wireframe -->
+    <path
+        android:fillColor="#FF60A5FF"
+        android:pathData="M126,38h24c2.2,0 4,1.8 4,4s-1.8,4 -4,4h-24c-2.2,0 -4,-1.8 -4,-4s1.8,-4 4,-4z" />
+    <!-- Popped SIM tray on left edge -->
+    <path
+        android:fillColor="#FFD0E8FF"
+        android:strokeColor="#FF017CFE"
+        android:strokeWidth="2"
+        android:pathData="M46,68h24v34H46c-2.2,0 -4,-1.8 -4,-4V72c0,-2.2 1.8,-4 4,-4z" />
+    <!-- Nano SIM card inside tray -->
+    <path
+        android:fillColor="#FF60A5FF"
+        android:pathData="M50,74h12l4,4v18H50V74z" />
+    <!-- SIM Ejector tool + arrow -->
+    <path
+        android:strokeColor="#FF015BFF"
+        android:strokeWidth="2.5"
+        android:pathData="M14,85a10,10 0 1,0 20,0a10,10 0 1,0 -20,0M34,85h8" />
+</vector>

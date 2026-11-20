@@ -1,7 +1,11 @@
 /*
  * SPDX-FileCopyrightText: 2016 The CyanogenMod Project
- * SPDX-FileCopyrightText: The LineageOS Project
+ * SPDX-FileCopyrightText: 2017-2024 The LineageOS Project
+ * SPDX-FileCopyrightText: 2026 The BlazeAOSP Project
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Boot animation and OOBE design concepts are adapted from AmeOS 16 by AmeOS Team (Figma Community), licensed under CC BY 4.0.
+ * Credits: AmeOS Team (Maksieku, Stellaris, Pjanda, arkainnit, Joke_Bamb, tmrx, trvhz).
  */
 
 package org.lineageos.setupwizard;
@@ -10,16 +14,22 @@ import static org.lineageos.setupwizard.SetupWizardApp.DISABLE_NAV_KEYS;
 import static org.lineageos.setupwizard.SetupWizardApp.KEY_SEND_METRICS;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.view.View;
+import android.view.WindowInsetsController;
+import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import lineageos.hardware.LineageHardwareManager;
 import lineageos.providers.LineageSettings;
+
+import org.lineageos.setupwizard.util.OobeSpringHelper;
 
 public class LineageSettingsActivity extends BaseSetupWizardActivity {
 
@@ -27,6 +37,8 @@ public class LineageSettingsActivity extends BaseSetupWizardActivity {
 
     private CheckBox mMetrics;
     private CheckBox mNavKeys;
+    private CheckBox mAcceptTerms;
+    private Button mAgreeButton;
 
     private boolean mSupportsKeyDisabler = false;
 
@@ -46,19 +58,23 @@ public class LineageSettingsActivity extends BaseSetupWizardActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mSetupWizardApp = (SetupWizardApp) getApplication();
-        setNextText(R.string.next);
+
+        try {
+            getWindow().setStatusBarColor(0xFFF6FCFF);
+            getWindow().setNavigationBarColor(0xFFEDF9FF);
+            WindowInsetsController wic = getWindow().getInsetsController();
+            if (wic != null) {
+                int mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                wic.setSystemBarsAppearance(mask, mask);
+            }
+        } catch (Throwable ignored) {}
 
         String os_name = getString(R.string.os_name);
-        String privacyPolicy = getString(R.string.services_pp_explanation, os_name);
-        String privacyPolicyUri = getString(R.string.services_privacy_policy_uri);
-        String policySummary = getString(R.string.services_find_privacy_policy, privacyPolicyUri);
-        String servicesFullDescription = getString(R.string.services_full_description,
-                privacyPolicy, policySummary);
-        getGlifLayout().setDescriptionText(servicesFullDescription);
-
         View metricsRow = findViewById(R.id.metrics);
-        metricsRow.setOnClickListener(mMetricsClickListener);
-        metricsRow.requestFocus();
+        if (metricsRow != null) {
+            metricsRow.setOnClickListener(mMetricsClickListener);
+        }
         String metricsHelpImproveLineage =
                 getString(R.string.services_help_improve_cm, os_name);
         String metricsSummary = getString(R.string.services_metrics_label,
@@ -67,18 +83,61 @@ public class LineageSettingsActivity extends BaseSetupWizardActivity {
         metricsSpan.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
                 0, metricsHelpImproveLineage.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         TextView metrics = findViewById(R.id.enable_metrics_summary);
-        metrics.setText(metricsSpan);
+        if (metrics != null) {
+            metrics.setText(metricsSpan);
+        }
         mMetrics = findViewById(R.id.enable_metrics_checkbox);
 
         View navKeysRow = findViewById(R.id.nav_keys);
-        navKeysRow.setOnClickListener(mNavKeysClickListener);
         mNavKeys = findViewById(R.id.nav_keys_checkbox);
         mSupportsKeyDisabler = isKeyDisablerSupported(this);
-        if (mSupportsKeyDisabler) {
-            mNavKeys.setChecked(LineageSettings.System.getIntForUser(getContentResolver(),
-                    LineageSettings.System.FORCE_SHOW_NAVBAR, 0, UserHandle.USER_CURRENT) != 0);
-        } else {
-            navKeysRow.setVisibility(View.GONE);
+        if (navKeysRow != null && mNavKeys != null) {
+            navKeysRow.setOnClickListener(mNavKeysClickListener);
+            if (mSupportsKeyDisabler) {
+                mNavKeys.setChecked(LineageSettings.System.getIntForUser(getContentResolver(),
+                        LineageSettings.System.FORCE_SHOW_NAVBAR, 0, UserHandle.USER_CURRENT) != 0);
+            } else {
+                navKeysRow.setVisibility(View.GONE);
+            }
+        }
+
+        View acceptTermsRow = findViewById(R.id.accept_terms_row);
+        mAcceptTerms = findViewById(R.id.accept_terms_checkbox);
+        mAgreeButton = findViewById(R.id.terms_agree_button);
+        ImageButton backBtn = findViewById(R.id.terms_back_button);
+
+        if (acceptTermsRow != null && mAcceptTerms != null) {
+            OobeSpringHelper.attachPressSpring(acceptTermsRow);
+            acceptTermsRow.setOnClickListener(v -> {
+                OobeSpringHelper.vibrateTick(this);
+                boolean nextState = !mAcceptTerms.isChecked();
+                mAcceptTerms.setChecked(nextState);
+                if (mAgreeButton != null) {
+                    mAgreeButton.setEnabled(nextState);
+                    mAgreeButton.setAlpha(nextState ? 1.0f : 0.45f);
+                }
+            });
+        }
+
+        if (backBtn != null) {
+            OobeSpringHelper.attachPressSpring(backBtn);
+            backBtn.setOnClickListener(v -> {
+                OobeSpringHelper.vibrateTick(this);
+                finishAction(RESULT_CANCELED, new Intent().putExtra("onBackPressed", true));
+            });
+        }
+
+        if (mAgreeButton != null) {
+            OobeSpringHelper.attachPressSpring(mAgreeButton);
+            mAgreeButton.setOnClickListener(v -> {
+                if (mAcceptTerms != null && !mAcceptTerms.isChecked()) {
+                    mAcceptTerms.setChecked(true);
+                    mAgreeButton.setEnabled(true);
+                    mAgreeButton.setAlpha(1.0f);
+                }
+                OobeSpringHelper.vibrateSuccess(this);
+                onNextPressed();
+            });
         }
     }
 
@@ -96,15 +155,21 @@ public class LineageSettingsActivity extends BaseSetupWizardActivity {
 
     @Override
     protected int getTitleResId() {
-        return R.string.setup_services;
+        return -1;
     }
 
     @Override
     protected int getIconResId() {
-        return R.drawable.ic_features;
+        return -1;
+    }
+
+    @Override
+    protected com.google.android.setupdesign.GlifLayout getGlifLayout() {
+        return null;
     }
 
     private void updateMetricsOption() {
+        if (mMetrics == null) return;
         final Bundle myPageBundle = mSetupWizardApp.getSettingsBundle();
         boolean metricsChecked =
                 !myPageBundle.containsKey(KEY_SEND_METRICS) || myPageBundle
@@ -114,7 +179,7 @@ public class LineageSettingsActivity extends BaseSetupWizardActivity {
     }
 
     private void updateDisableNavkeysOption() {
-        if (mSupportsKeyDisabler) {
+        if (mSupportsKeyDisabler && mNavKeys != null) {
             final Bundle myPageBundle = mSetupWizardApp.getSettingsBundle();
             boolean enabled = LineageSettings.System.getIntForUser(getContentResolver(),
                     LineageSettings.System.FORCE_SHOW_NAVBAR, 0, UserHandle.USER_CURRENT) != 0;

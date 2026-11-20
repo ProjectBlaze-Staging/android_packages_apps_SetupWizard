@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- Figma 4:1221 Rising white/sky rounded-[45dp] sheet -->
+    <gradient
+        android:angle="270"
+        android:startColor="#FFF6FCFF"
+        android:endColor="#FFEDF9FF"
+        android:type="linear" />
+    <corners
+        android:topLeftRadius="45dp"
+        android:topRightRadius="45dp" />
+</shape>

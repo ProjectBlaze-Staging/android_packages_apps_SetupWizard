@@ -7,7 +7,8 @@
 package org.lineageos.setupwizard;
 
 import android.app.UiModeManager;
-import android.content.res.Configuration;
+import android.content.Intent;
+import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.SystemProperties;
@@ -16,8 +17,7 @@ import android.provider.Settings;
 import android.view.View;
 import android.view.WindowInsetsController;
 import android.widget.Button;
-import android.widget.RadioButton;
-import android.widget.Switch;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -25,278 +25,460 @@ import androidx.annotation.Nullable;
 import org.lineageos.setupwizard.util.OobeSpringHelper;
 import org.lineageos.setupwizard.widget.OobeLivePreviewView;
 
+/**
+ * 3-stage visual customization & showcase experience inside ThemeSettingsActivity:
+ * - Stage 0 (Figma 4:1595): Choose your theme (3-phone lockscreen carousel: sky 1, sky 3, sky 4)
+ * - Stage 1 (Figma 4:1261): Icon style [Visual] (4x2 live banner + Dimensional, Classic, Adaptive, Liquid Glass)
+ * - Stage 2 (Figma 4:1381..4:1486): 5-Page Feature Showcase on #000000 backdrop
+ */
 public class ThemeSettingsActivity extends BaseSetupWizardActivity {
+
+    private static final String[] SHOWCASE_TITLES = new String[]{
+            "Meet Frosted Glass",
+            "Redefined Animations",
+            "Dynamic Island Live",
+            "The Float Bar",
+            "90+ New Clock Faces"
+    };
+
+    private static final String[] SHOWCASE_SUBTITLES = new String[]{
+            "Real-time optical surface blur with delicate specular borders across the entire Control Center.",
+            "Critically damped 120Hz Animation Kitchen spring physics in BlazeHouse Home Up Studio.",
+            "Interactive capsule that morphs smoothly for media playback, calls, timers, and charging.",
+            "Fluid bottom navigation capsule with chromatic edge refraction and active pill scrubbing.",
+            "Over 90 customizable digital and analog lock screen clock designs inside BlazeHouse."
+    };
+
+    private static final String[] ICON_PACK_VALUES = new String[]{
+            "org.blazeos.blazeicons",
+            "none",
+            "adaptive"
+    };
 
     private View mRootLayout;
     private TextView mPageTitle;
     private TextView mPageSubtitle;
-    private TextView mSectionTheme;
-    private TextView mSectionGlass;
-
     private OobeLivePreviewView mLivePreview;
-    private View mCardLight;
-    private View mCardDark;
-    private RadioButton mRadioLight;
-    private RadioButton mRadioDark;
 
-    private View mCardGlassCrystal;
-    private View mCardGlassLiquid;
-    private View mCardGlassFrosted;
-    private RadioButton mRadioGlassCrystal;
-    private RadioButton mRadioGlassLiquid;
-    private RadioButton mRadioGlassFrosted;
+    private View mStageThemeControls;
+    private View mStageIconControls;
+    private View mShowcaseProgressContainer;
+    private View[] mShowcaseBars;
+    private View[] mThemeDots;
+    private Button mBtnSky1;
+    private Button mBtnSky3;
+    private Button mBtnSky4;
+    private View[] mIconStyleCards;
 
-    private View mCardDynamicIsland;
-    private Switch mSwitchDynamicIsland;
+    private ImageButton mBackButton;
+    private Button mNextButton;
 
-    private TextView[] mPrimaryTexts;
-    private TextView[] mSecondaryTexts;
-
-    private boolean mIsDarkMode = true;
-    private int mSelectedGlassStyle = 3; // 3 = Dark Smoked Crystal, 0 = Liquid Glass, 1 = Soft Frosted
-    private boolean mDynamicIslandEnabled = true;
+    private int mCurrentStage = 0; // 0 = Theme Carousel, 1 = Icon Style, 2 = 5-Page Showcase
+    private int mSelectedThemeIdx = 0; // 0 = sky 1 (Light Frosted), 1 = sky 3 (Liquid Glass), 2 = sky 4 (Dark Crystal)
+    private int mSelectedIconStyleIdx = 0; // 0 = Dimensional, 1 = Classic, 2 = Adaptive, 3 = Liquid Glass
+    private int mShowcasePage = 0; // 0..4
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setNextText(R.string.next);
+
+        if (savedInstanceState != null) {
+            mCurrentStage = savedInstanceState.getInt("theme_stage", 0);
+            mSelectedThemeIdx = savedInstanceState.getInt("theme_idx", 0);
+            mSelectedIconStyleIdx = savedInstanceState.getInt("icon_style_idx", 0);
+            mShowcasePage = savedInstanceState.getInt("showcase_page", 0);
+        }
 
         mRootLayout = findViewById(R.id.setup_wizard_layout);
         mPageTitle = findViewById(R.id.theme_page_title);
         mPageSubtitle = findViewById(R.id.theme_page_subtitle);
-        mSectionTheme = findViewById(R.id.section_label_theme);
-        mSectionGlass = findViewById(R.id.section_label_glass);
-
         mLivePreview = findViewById(R.id.oobe_live_preview);
-        mCardLight = findViewById(R.id.card_theme_light);
-        mCardDark = findViewById(R.id.card_theme_dark);
-        mRadioLight = findViewById(R.id.radio_light);
-        mRadioDark = findViewById(R.id.radio_dark);
 
-        mCardGlassCrystal = findViewById(R.id.card_glass_dark_crystal);
-        mCardGlassLiquid = findViewById(R.id.card_glass_liquid);
-        mCardGlassFrosted = findViewById(R.id.card_glass_frosted);
-        mRadioGlassCrystal = findViewById(R.id.radio_glass_crystal);
-        mRadioGlassLiquid = findViewById(R.id.radio_glass_liquid);
-        mRadioGlassFrosted = findViewById(R.id.radio_glass_frosted);
+        mStageThemeControls = findViewById(R.id.stage_theme_controls);
+        mStageIconControls = findViewById(R.id.stage_icon_controls);
+        mShowcaseProgressContainer = findViewById(R.id.showcase_progress_container);
 
-        mCardDynamicIsland = findViewById(R.id.card_dynamic_island);
-        mSwitchDynamicIsland = findViewById(R.id.switch_dynamic_island);
-        Button nextBtn = findViewById(R.id.theme_next_button);
-
-        mPrimaryTexts = new TextView[]{
-                findViewById(R.id.title_theme_light),
-                findViewById(R.id.title_theme_dark),
-                findViewById(R.id.title_glass_crystal),
-                findViewById(R.id.title_glass_liquid),
-                findViewById(R.id.title_glass_frosted),
-                findViewById(R.id.title_dynamic_island)
-        };
-        mSecondaryTexts = new TextView[]{
-                findViewById(R.id.sub_theme_light),
-                findViewById(R.id.sub_theme_dark),
-                findViewById(R.id.sub_glass_crystal),
-                findViewById(R.id.sub_glass_liquid),
-                findViewById(R.id.sub_glass_frosted),
-                findViewById(R.id.sub_dynamic_island)
+        mShowcaseBars = new View[]{
+                findViewById(R.id.showcase_bar_0),
+                findViewById(R.id.showcase_bar_1),
+                findViewById(R.id.showcase_bar_2),
+                findViewById(R.id.showcase_bar_3),
+                findViewById(R.id.showcase_bar_4)
         };
 
-        int nightSetting = Settings.Secure.getIntForUser(
-                getContentResolver(), "ui_night_mode", -1, UserHandle.USER_CURRENT);
-        if (nightSetting == 1) {
-            mIsDarkMode = false;
-        } else if (nightSetting == 2) {
-            mIsDarkMode = true;
-        } else {
-            mIsDarkMode = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
-                    == Configuration.UI_MODE_NIGHT_YES;
+        mThemeDots = new View[]{
+                findViewById(R.id.theme_dot_0),
+                findViewById(R.id.theme_dot_1),
+                findViewById(R.id.theme_dot_2)
+        };
+
+        mBtnSky1 = findViewById(R.id.btn_sky_1);
+        mBtnSky3 = findViewById(R.id.btn_sky_3);
+        mBtnSky4 = findViewById(R.id.btn_sky_4);
+
+        mIconStyleCards = new View[]{
+                findViewById(R.id.icon_style_dimensional),
+                findViewById(R.id.icon_style_classic),
+                findViewById(R.id.icon_style_adaptive)
+        };
+
+        mBackButton = findViewById(R.id.theme_back_button);
+        mNextButton = findViewById(R.id.theme_next_button);
+
+        if (mBtnSky1 != null) {
+            OobeSpringHelper.attachPressSpring(mBtnSky1);
+            mBtnSky1.setOnClickListener(v -> selectThemeOption(0));
+        }
+        if (mBtnSky3 != null) {
+            OobeSpringHelper.attachPressSpring(mBtnSky3);
+            mBtnSky3.setOnClickListener(v -> selectThemeOption(1));
+        }
+        if (mBtnSky4 != null) {
+            OobeSpringHelper.attachPressSpring(mBtnSky4);
+            mBtnSky4.setOnClickListener(v -> selectThemeOption(2));
         }
 
-        mSelectedGlassStyle = Settings.Secure.getIntForUser(
-                getContentResolver(), "blaze_ui_glass_style", 3, UserHandle.USER_CURRENT);
-        mDynamicIslandEnabled = Settings.Secure.getIntForUser(
-                getContentResolver(), "dynamic_bar_enabled", 1, UserHandle.USER_CURRENT) != 0;
+        if (mLivePreview != null) {
+            final android.view.GestureDetector detector = new android.view.GestureDetector(this,
+                    new android.view.GestureDetector.SimpleOnGestureListener() {
+                        @Override
+                        public boolean onDown(android.view.MotionEvent e) {
+                            return true;
+                        }
 
-        if (mCardLight != null) {
-            OobeSpringHelper.attachPressSpring(mCardLight);
-            mCardLight.setOnClickListener(v -> selectDarkMode(false));
-        }
-        if (mCardDark != null) {
-            OobeSpringHelper.attachPressSpring(mCardDark);
-            mCardDark.setOnClickListener(v -> selectDarkMode(true));
+                        @Override
+                        public boolean onSingleTapUp(android.view.MotionEvent e) {
+                            if (mCurrentStage == 0) {
+                                int w = mLivePreview.getWidth();
+                                if (w > 0 && e.getX() < w * 0.34f) {
+                                    selectThemeOption((mSelectedThemeIdx + 2) % 3);
+                                } else {
+                                    selectThemeOption((mSelectedThemeIdx + 1) % 3);
+                                }
+                            } else if (mCurrentStage == 1) {
+                                selectIconStyleOption((mSelectedIconStyleIdx + 1) % 3);
+                            } else if (mCurrentStage == 2 && mShowcasePage < 4) {
+                                OobeSpringHelper.vibrateTick(ThemeSettingsActivity.this);
+                                mShowcasePage++;
+                                renderCurrentStage();
+                            }
+                            return true;
+                        }
+
+                        @Override
+                        public boolean onFling(android.view.MotionEvent e1,
+                                android.view.MotionEvent e2, float velocityX, float velocityY) {
+                            if (e1 == null || e2 == null) return false;
+                            float dx = e2.getX() - e1.getX();
+                            if (Math.abs(dx) > 60f && Math.abs(dx) > Math.abs(e2.getY() - e1.getY())) {
+                                if (mCurrentStage == 0) {
+                                    selectThemeOption(dx < 0
+                                            ? (mSelectedThemeIdx + 1) % 3
+                                            : (mSelectedThemeIdx + 2) % 3);
+                                    return true;
+                                } else if (mCurrentStage == 1) {
+                                    selectIconStyleOption(dx < 0
+                                            ? (mSelectedIconStyleIdx + 1) % 3
+                                            : (mSelectedIconStyleIdx + 2) % 3);
+                                    return true;
+                                } else if (mCurrentStage == 2) {
+                                    if (dx < 0 && mShowcasePage < 4) {
+                                        OobeSpringHelper.vibrateTick(ThemeSettingsActivity.this);
+                                        mShowcasePage++;
+                                        renderCurrentStage();
+                                        return true;
+                                    } else if (dx > 0 && mShowcasePage > 0) {
+                                        OobeSpringHelper.vibrateTick(ThemeSettingsActivity.this);
+                                        mShowcasePage--;
+                                        renderCurrentStage();
+                                        return true;
+                                    }
+                                }
+                            }
+                            return false;
+                        }
+                    });
+            mLivePreview.setOnTouchListener((v, event) -> detector.onTouchEvent(event));
         }
 
-        if (mCardGlassCrystal != null) {
-            OobeSpringHelper.attachPressSpring(mCardGlassCrystal);
-            mCardGlassCrystal.setOnClickListener(v -> selectGlassStyle(3));
-        }
-        if (mCardGlassLiquid != null) {
-            OobeSpringHelper.attachPressSpring(mCardGlassLiquid);
-            mCardGlassLiquid.setOnClickListener(v -> selectGlassStyle(0));
-        }
-        if (mCardGlassFrosted != null) {
-            OobeSpringHelper.attachPressSpring(mCardGlassFrosted);
-            mCardGlassFrosted.setOnClickListener(v -> selectGlassStyle(1));
+        for (int i = 0; i < mIconStyleCards.length; i++) {
+            final int idx = i;
+            View card = mIconStyleCards[i];
+            if (card != null) {
+                OobeSpringHelper.attachPressSpring(card);
+                card.setOnClickListener(v -> selectIconStyleOption(idx));
+            }
         }
 
-        if (mCardDynamicIsland != null && mSwitchDynamicIsland != null) {
-            mSwitchDynamicIsland.setChecked(mDynamicIslandEnabled);
-            OobeSpringHelper.attachPressSpring(mCardDynamicIsland);
-            mCardDynamicIsland.setOnClickListener(v -> {
-                mDynamicIslandEnabled = !mDynamicIslandEnabled;
-                mSwitchDynamicIsland.setChecked(mDynamicIslandEnabled);
-                applyDynamicIslandSetting(mDynamicIslandEnabled);
-                OobeSpringHelper.vibrateTick(this);
-                refreshSelectionUi();
-            });
-            mSwitchDynamicIsland.setOnCheckedChangeListener((btn, isChecked) -> {
-                if (mDynamicIslandEnabled != isChecked) {
-                    mDynamicIslandEnabled = isChecked;
-                    applyDynamicIslandSetting(isChecked);
-                    OobeSpringHelper.vibrateTick(this);
-                    refreshSelectionUi();
-                }
-            });
+        if (mBackButton != null) {
+            OobeSpringHelper.attachPressSpring(mBackButton);
+            mBackButton.setOnClickListener(v -> handleStepBack());
         }
 
-        if (nextBtn != null) {
-            OobeSpringHelper.attachPressSpring(nextBtn);
-            nextBtn.setOnClickListener(v -> {
-                OobeSpringHelper.vibrateSuccess(this);
-                onNextPressed();
-            });
+        if (mNextButton != null) {
+            OobeSpringHelper.attachPressSpring(mNextButton);
+            mNextButton.setOnClickListener(v -> handleStepForward());
         }
 
-        refreshSelectionUi();
+        // Default enable Dynamic Island
+        applyDynamicIslandDefault();
+        renderCurrentStage();
     }
 
-    private void selectDarkMode(boolean dark) {
-        mIsDarkMode = dark;
-        OobeSpringHelper.vibrateTick(this);
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt("theme_stage", mCurrentStage);
+        outState.putInt("theme_idx", mSelectedThemeIdx);
+        outState.putInt("icon_style_idx", mSelectedIconStyleIdx);
+        outState.putInt("showcase_page", mShowcasePage);
+    }
 
-        // Persist night mode in Secure Settings + UiModeManager so it applies both during SUW and after SUW
+    @Override
+    protected void onSystemBackPressed() {
+        handleStepBack();
+    }
+
+    private void handleStepBack() {
+        OobeSpringHelper.vibrateTick(this);
+        if (mCurrentStage == 2) {
+            if (mShowcasePage > 0) {
+                mShowcasePage--;
+                renderCurrentStage();
+            } else {
+                mCurrentStage = 1;
+                renderCurrentStage();
+            }
+        } else if (mCurrentStage == 1) {
+            mCurrentStage = 0;
+            renderCurrentStage();
+        } else {
+            finishAction(RESULT_CANCELED, new Intent().putExtra("onBackPressed", true));
+        }
+    }
+
+    private void handleStepForward() {
+        OobeSpringHelper.vibrateSuccess(this);
+        if (mCurrentStage == 0) {
+            applySelectedThemeToSystem();
+            mCurrentStage = 1;
+            renderCurrentStage();
+        } else if (mCurrentStage == 1) {
+            applySelectedIconStyleToSystem();
+            mCurrentStage = 2;
+            mShowcasePage = 0;
+            renderCurrentStage();
+        } else {
+            if (mShowcasePage < 4) {
+                mShowcasePage++;
+                renderCurrentStage();
+            } else {
+                onNextPressed();
+            }
+        }
+    }
+
+    private void selectThemeOption(int index) {
+        mSelectedThemeIdx = index;
+        OobeSpringHelper.vibrateTick(this);
+        applySelectedThemeToSystem();
+        renderCurrentStage();
+    }
+
+    private void selectIconStyleOption(int index) {
+        mSelectedIconStyleIdx = index;
+        OobeSpringHelper.vibrateTick(this);
+        applySelectedIconStyleToSystem();
+        renderCurrentStage();
+    }
+
+    private void applySelectedThemeToSystem() {
+        // 0 = Blaze Light (Light Frosted), 1 = Blaze Dark (Dark Obsidian), 2 = Dynamic Monet (Dark + Liquid Glass)
+        boolean dark = (mSelectedThemeIdx != 0);
+        int glassStyle = (mSelectedThemeIdx == 0) ? 1 : (mSelectedThemeIdx == 1 ? 3 : 0);
         try {
             SetupWizardApp.getSettingsBundle().putBoolean("enable_dark_theme", dark);
             Settings.Secure.putIntForUser(
                     getContentResolver(), "ui_night_mode", dark ? 2 : 1, UserHandle.USER_CURRENT);
             Settings.Secure.putIntForUser(
-                    getContentResolver(), "ui_night_mode_custom_type", -1, UserHandle.USER_CURRENT);
-        } catch (Throwable ignored) {}
-
-        try {
-            UiModeManager uiModeManager = getSystemService(UiModeManager.class);
-            if (uiModeManager != null) {
-                uiModeManager.setNightMode(dark ? UiModeManager.MODE_NIGHT_YES : UiModeManager.MODE_NIGHT_NO);
-                uiModeManager.setNightModeActivated(dark);
-            }
-        } catch (Throwable ignored) {}
-
-        refreshSelectionUi();
-    }
-
-    private void selectGlassStyle(int style) {
-        mSelectedGlassStyle = style;
-        OobeSpringHelper.vibrateTick(this);
-        try {
-            Settings.Secure.putIntForUser(
-                    getContentResolver(), "blaze_ui_glass_style", style, UserHandle.USER_CURRENT);
-            SystemProperties.set("persist.sys.blaze.glass_style", String.valueOf(style));
+                    getContentResolver(), "blaze_ui_glass_style", glassStyle, UserHandle.USER_CURRENT);
+            SystemProperties.set("persist.sys.blaze.glass_style", String.valueOf(glassStyle));
             Settings.System.putIntForUser(
                     getContentResolver(),
                     "blaze_ui_glass_style_version",
                     (int) (System.currentTimeMillis() & 0x7FFFFFFF),
                     UserHandle.USER_CURRENT);
-        } catch (Throwable ignored) {}
-        refreshSelectionUi();
-    }
-
-    private void applyDynamicIslandSetting(boolean enabled) {
-        try {
-            Settings.Secure.putIntForUser(
-                    getContentResolver(), "dynamic_bar_enabled", enabled ? 1 : 0, UserHandle.USER_CURRENT);
-            Settings.Secure.putIntForUser(
-                    getContentResolver(), "dynamic_bar_keyguard_enable", enabled ? 1 : 0, UserHandle.USER_CURRENT);
+            UiModeManager uiModeManager = getSystemService(UiModeManager.class);
+            if (uiModeManager != null) {
+                uiModeManager.setNightMode(dark ? UiModeManager.MODE_NIGHT_YES : UiModeManager.MODE_NIGHT_NO);
+            }
         } catch (Throwable ignored) {}
     }
 
-    private void refreshSelectionUi() {
-        // 1. Live Activity Surface & Text Theme Update (Dark vs Light)
-        int bgColor = mIsDarkMode ? 0xFF0C0F16 : 0xFFF7F9FC;
-        int titleColor = mIsDarkMode ? 0xFFF8FAFC : 0xFF0F172A;
-        int subtitleColor = mIsDarkMode ? 0xFF94A3B8 : 0xFF475569;
-        int sectionColor = mIsDarkMode ? 0xFF60A5FA : 0xFF2563EB;
-
-        if (mRootLayout != null) mRootLayout.setBackgroundColor(bgColor);
-        if (mPageTitle != null) mPageTitle.setTextColor(titleColor);
-        if (mPageSubtitle != null) mPageSubtitle.setTextColor(subtitleColor);
-        if (mSectionTheme != null) mSectionTheme.setTextColor(sectionColor);
-        if (mSectionGlass != null) mSectionGlass.setTextColor(sectionColor);
-
-        if (mPrimaryTexts != null) {
-            for (TextView tv : mPrimaryTexts) {
-                if (tv != null) tv.setTextColor(titleColor);
+    private void applySelectedIconStyleToSystem() {
+        int clamped = Math.max(0, Math.min(ICON_PACK_VALUES.length - 1, mSelectedIconStyleIdx));
+        String packValue = ICON_PACK_VALUES[clamped];
+        boolean adaptive = (clamped == 2);
+        try {
+            Settings.Secure.putStringForUser(
+                    getContentResolver(), "blaze_icon_pack", packValue, UserHandle.USER_CURRENT);
+            Settings.Secure.putIntForUser(
+                    getContentResolver(), "themed_icon_enabled", adaptive ? 1 : 0, UserHandle.USER_CURRENT);
+            Settings.Secure.putIntForUser(
+                    getContentResolver(), "themed_icons", adaptive ? 1 : 0, UserHandle.USER_CURRENT);
+            String[] authorities = new String[]{
+                    "com.android.launcher3.grid_control",
+                    "com.google.android.apps.nexuslauncher.grid_control"
+            };
+            for (String auth : authorities) {
+                try {
+                    android.net.Uri uri = new android.net.Uri.Builder()
+                            .scheme("content")
+                            .authority(auth)
+                            .appendPath("icon_themed")
+                            .build();
+                    android.content.ContentValues values = new android.content.ContentValues();
+                    values.put("boolean_value", adaptive);
+                    getContentResolver().update(uri, values, null, null);
+                } catch (Throwable ignored) {}
             }
-        }
-        if (mSecondaryTexts != null) {
-            for (TextView tv : mSecondaryTexts) {
-                if (tv != null) tv.setTextColor(subtitleColor);
+        } catch (Throwable ignored) {}
+    }
+
+    private void applyDynamicIslandDefault() {
+        try {
+            Settings.Secure.putIntForUser(
+                    getContentResolver(), "ax_dynamic_bar_enabled", 1, UserHandle.USER_CURRENT);
+            Settings.Secure.putIntForUser(
+                    getContentResolver(), "ax_dynamic_bar_keyguard_enabled", 1, UserHandle.USER_CURRENT);
+            Settings.System.putIntForUser(
+                    getContentResolver(), "status_bar_show_dynamic_island", 1, UserHandle.USER_CURRENT);
+            Settings.System.putIntForUser(
+                    getContentResolver(), "status_bar_dynamic_island_media_controls", 1, UserHandle.USER_CURRENT);
+        } catch (Throwable ignored) {}
+    }
+
+    private void renderCurrentStage() {
+        float d = getResources().getDisplayMetrics().density;
+        boolean isShowcase = (mCurrentStage == 2);
+
+        if (mRootLayout != null) {
+            if (isShowcase) {
+                mRootLayout.setBackgroundColor(0xFF000000);
+            } else {
+                mRootLayout.setBackgroundResource(R.drawable.ameos_sky_canvas);
             }
         }
 
         try {
-            getWindow().setStatusBarColor(bgColor);
-            getWindow().setNavigationBarColor(bgColor);
+            int barBg = isShowcase ? 0xFF000000 : 0xFFF6FCFF;
+            getWindow().setStatusBarColor(barBg);
+            getWindow().setNavigationBarColor(isShowcase ? 0xFF000000 : 0xFFEDF9FF);
             WindowInsetsController wic = getWindow().getInsetsController();
             if (wic != null) {
                 int mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
                         | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
-                wic.setSystemBarsAppearance(mIsDarkMode ? 0 : mask, mask);
+                wic.setSystemBarsAppearance(isShowcase ? 0 : mask, mask);
             }
         } catch (Throwable ignored) {}
 
-        // 2. Radio & Card Borders
-        if (mRadioLight != null) mRadioLight.setChecked(!mIsDarkMode);
-        if (mRadioDark != null) mRadioDark.setChecked(mIsDarkMode);
-        styleOptionCard(mCardLight, !mIsDarkMode);
-        styleOptionCard(mCardDark, mIsDarkMode);
+        if (mStageThemeControls != null) {
+            mStageThemeControls.setVisibility(mCurrentStage == 0 ? View.VISIBLE : View.GONE);
+        }
+        if (mStageIconControls != null) {
+            mStageIconControls.setVisibility(mCurrentStage == 1 ? View.VISIBLE : View.GONE);
+        }
+        if (mShowcaseProgressContainer != null) {
+            mShowcaseProgressContainer.setVisibility(isShowcase ? View.VISIBLE : View.GONE);
+        }
 
-        if (mRadioGlassCrystal != null) mRadioGlassCrystal.setChecked(mSelectedGlassStyle == 3);
-        if (mRadioGlassLiquid != null) mRadioGlassLiquid.setChecked(mSelectedGlassStyle == 0);
-        if (mRadioGlassFrosted != null) mRadioGlassFrosted.setChecked(mSelectedGlassStyle == 1);
-        styleOptionCard(mCardGlassCrystal, mSelectedGlassStyle == 3);
-        styleOptionCard(mCardGlassLiquid, mSelectedGlassStyle == 0);
-        styleOptionCard(mCardGlassFrosted, mSelectedGlassStyle == 1);
-
-        styleOptionCard(mCardDynamicIsland, mDynamicIslandEnabled);
-
-        if (mLivePreview != null) {
-            mLivePreview.updateState(mIsDarkMode, mSelectedGlassStyle, mDynamicIslandEnabled);
+        if (mCurrentStage == 0) {
+            if (mPageTitle != null) {
+                mPageTitle.setText("Choose your theme");
+                mPageTitle.setTextColor(0xFF203A51);
+            }
+            if (mPageSubtitle != null) {
+                mPageSubtitle.setText("Swipe or tap a lock screen preset to preview");
+                mPageSubtitle.setTextColor(0xFF5B7894);
+            }
+            if (mNextButton != null) {
+                mNextButton.setText("Apply This Theme");
+            }
+            if (mLivePreview != null) {
+                mLivePreview.setPreviewMode(OobeLivePreviewView.MODE_THEME_CAROUSEL);
+                mLivePreview.setThemeCarouselIndex(mSelectedThemeIdx);
+            }
+            styleSkyButtons();
+        } else if (mCurrentStage == 1) {
+            if (mPageTitle != null) {
+                mPageTitle.setText("Icon style");
+                mPageTitle.setTextColor(0xFF203A51);
+            }
+            if (mPageSubtitle != null) {
+                mPageSubtitle.setText("Choose how app icons appear on your home screen");
+                mPageSubtitle.setTextColor(0xFF5B7894);
+            }
+            if (mNextButton != null) {
+                mNextButton.setText("Set up");
+            }
+            if (mLivePreview != null) {
+                mLivePreview.setPreviewMode(OobeLivePreviewView.MODE_ICON_PREVIEW);
+                mLivePreview.setIconStyleIndex(mSelectedIconStyleIdx);
+            }
+            for (int i = 0; i < mIconStyleCards.length; i++) {
+                View card = mIconStyleCards[i];
+                if (card != null) {
+                    GradientDrawable bg = new GradientDrawable();
+                    bg.setCornerRadius(16f * d);
+                    if (i == mSelectedIconStyleIdx) {
+                        bg.setColor(0xFFE0F4FF);
+                        bg.setStroke(Math.round(3f * d), 0xFF02C9FF);
+                    } else {
+                        bg.setColor(0xFFFFFFFF);
+                        bg.setStroke(Math.round(1f * d), 0xFFD8ECFF);
+                    }
+                    card.setBackground(bg);
+                }
+            }
+        } else {
+            if (mPageTitle != null) {
+                mPageTitle.setText(SHOWCASE_TITLES[mShowcasePage]);
+                mPageTitle.setTextColor(Color.WHITE);
+            }
+            if (mPageSubtitle != null) {
+                mPageSubtitle.setText(SHOWCASE_SUBTITLES[mShowcasePage]);
+                mPageSubtitle.setTextColor(0xFFB0C4DE);
+            }
+            if (mNextButton != null) {
+                mNextButton.setText(mShowcasePage == 4 ? "Done" : "Continue");
+            }
+            if (mLivePreview != null) {
+                mLivePreview.setPreviewMode(OobeLivePreviewView.MODE_SHOWCASE);
+                mLivePreview.setShowcasePageIndex(mShowcasePage);
+            }
+            for (int i = 0; i < mShowcaseBars.length; i++) {
+                if (mShowcaseBars[i] != null) {
+                    mShowcaseBars[i].setBackgroundColor(i <= mShowcasePage ? 0xFF02C9FF : 0x38FFFFFF);
+                }
+            }
         }
     }
 
-    private void styleOptionCard(View card, boolean selected) {
-        if (card == null) return;
-        float d = getResources().getDisplayMetrics().density;
-        GradientDrawable gd = new GradientDrawable();
-        gd.setCornerRadius(18f * d);
-        if (mIsDarkMode) {
-            if (selected) {
-                gd.setColor(0xFF17233B);
-                gd.setStroke(Math.round(1.6f * d), 0xFF3B82F6);
-            } else {
-                gd.setColor(0xFF141923);
-                gd.setStroke(Math.round(1.0f * d), 0x22FFFFFF);
+    private void styleSkyButtons() {
+        Button[] btns = new Button[]{mBtnSky1, mBtnSky3, mBtnSky4};
+        for (int i = 0; i < btns.length; i++) {
+            Button b = btns[i];
+            if (b != null) {
+                boolean active = (i == mSelectedThemeIdx);
+                b.setBackgroundResource(active
+                        ? R.drawable.ameos_btn_pill_filled
+                        : R.drawable.ameos_btn_pill_outline);
+                b.setTextColor(active ? Color.WHITE : 0xFF203A51);
             }
-        } else {
-            if (selected) {
-                gd.setColor(0xFFEFF6FF);
-                gd.setStroke(Math.round(1.6f * d), 0xFF2563EB);
-            } else {
-                gd.setColor(0xFFFFFFFF);
-                gd.setStroke(Math.round(1.0f * d), 0xFFE2E8F0);
+            if (mThemeDots != null && i < mThemeDots.length && mThemeDots[i] != null) {
+                mThemeDots[i].setBackgroundColor(i == mSelectedThemeIdx ? 0xFF02C9FF : 0x5560A5FF);
             }
         }
-        card.setBackground(gd);
     }
 
     @Override

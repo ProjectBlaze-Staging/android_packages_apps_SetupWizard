@@ -9,7 +9,6 @@ package org.lineageos.setupwizard;
 
 import static org.lineageos.setupwizard.SetupWizardApp.LOGV;
 
-import android.animation.Animator;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.os.Bundle;
@@ -17,9 +16,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.UserHandle;
 import android.provider.Settings;
-import android.util.Log;
 import android.view.View;
-import android.view.ViewAnimationUtils;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Button;
 
 import com.google.android.setupcompat.util.SystemBarHelper;
@@ -34,6 +32,8 @@ public class FinishActivity extends BaseSetupWizardActivity {
 
     private LuminousBloomView mBloomView;
     private View mContentContainer;
+    private View mHeroStage;
+    private View mStarBg;
     private SetupWizardApp mSetupWizardApp;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private volatile boolean mIsFinishing = false;
@@ -47,6 +47,8 @@ public class FinishActivity extends BaseSetupWizardActivity {
         mSetupWizardApp = (SetupWizardApp) getApplication();
         mBloomView = findViewById(R.id.finish_bloom_view);
         mContentContainer = findViewById(R.id.finish_content_container);
+        mHeroStage = findViewById(R.id.finish_hero_stage);
+        mStarBg = findViewById(R.id.finish_star_bg);
 
         View glifLayout = findViewById(R.id.setup_wizard_layout);
         if (glifLayout != null) {
@@ -77,6 +79,16 @@ public class FinishActivity extends BaseSetupWizardActivity {
                     .setDuration(420)
                     .start();
         }
+        if (mStarBg != null) {
+            mStarBg.setScaleX(0.82f);
+            mStarBg.setScaleY(0.82f);
+            mStarBg.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .rotation(15f)
+                    .setDuration(680)
+                    .start();
+        }
         if (mBloomView != null) {
             mBloomView.startBloomAnimation(700, null);
         }
@@ -93,6 +105,21 @@ public class FinishActivity extends BaseSetupWizardActivity {
     }
 
     @Override
+    protected int getTitleResId() {
+        return -1;
+    }
+
+    @Override
+    protected int getIconResId() {
+        return -1;
+    }
+
+    @Override
+    protected com.google.android.setupdesign.GlifLayout getGlifLayout() {
+        return null;
+    }
+
+    @Override
     protected void onNextPressed() {
         startFinishSequence();
     }
@@ -100,6 +127,13 @@ public class FinishActivity extends BaseSetupWizardActivity {
     @Override
     public void onNavigateNext() {
         startFinishSequence();
+    }
+
+    @Override
+    protected void onSystemBackPressed() {
+        if (!mIsFinishing) {
+            super.onSystemBackPressed();
+        }
     }
 
     private void startFinishSequence() {
@@ -111,49 +145,46 @@ public class FinishActivity extends BaseSetupWizardActivity {
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
         disableNavigation();
 
+        // Figma 4:1724 -> 4:1621: Scale-down / zoom transition into the home screen
         final View rootView = findViewById(R.id.setup_wizard_layout);
         if (rootView != null && rootView.isAttachedToWindow()) {
-            final int cx = rootView.getWidth() / 2;
-            final int cy = rootView.getHeight() / 2;
-            final float maxRadius = (float) Math.hypot(cx, cy);
-            try {
-                Animator anim = ViewAnimationUtils.createCircularReveal(
-                        rootView, cx, cy, maxRadius, 0f);
-                anim.setDuration(420);
-                anim.addListener(new Animator.AnimatorListener() {
-                    @Override
-                    public void onAnimationStart(Animator animation) {
-                        mHandler.post(() -> {
-                            if (LOGV) {
-                                Log.v(TAG, "Animation started");
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onAnimationEnd(Animator animation) {
-                        mHandler.post(() -> {
-                            rootView.setVisibility(View.INVISIBLE);
-                            completeSetup();
-                        });
-                    }
-
-                    @Override
-                    public void onAnimationCancel(Animator animation) {}
-
-                    @Override
-                    public void onAnimationRepeat(Animator animation) {}
-                });
-                anim.start();
-                return;
-            } catch (Exception ignored) {}
+            if (mHeroStage != null) {
+                mHeroStage.animate()
+                        .scaleX(1.38f)
+                        .scaleY(1.38f)
+                        .setDuration(420)
+                        .setInterpolator(new AccelerateDecelerateInterpolator())
+                        .start();
+            }
+            rootView.animate()
+                    .scaleX(0.86f)
+                    .scaleY(0.86f)
+                    .alpha(0f)
+                    .setDuration(420)
+                    .setInterpolator(new AccelerateDecelerateInterpolator())
+                    .withEndAction(() -> mHandler.post(() -> {
+                        rootView.setVisibility(View.INVISIBLE);
+                        completeSetup();
+                    }))
+                    .start();
+            return;
         }
         completeSetup();
     }
 
     private void completeSetup() {
         handleWallpaperTheme(mSetupWizardApp);
+        ensure120HzSmoothness(this);
         SetupWizardUtils.finishSetupWizard(FinishActivity.this);
+    }
+
+    private static void ensure120HzSmoothness(Context context) {
+        try {
+            Settings.System.putFloatForUser(context.getContentResolver(),
+                    "min_refresh_rate", 120.0f, UserHandle.USER_CURRENT);
+            Settings.System.putFloatForUser(context.getContentResolver(),
+                    "peak_refresh_rate", 120.0f, UserHandle.USER_CURRENT);
+        } catch (Throwable ignored) {}
     }
 
     private static void handleWallpaperTheme(Context context) {

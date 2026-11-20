@@ -1,83 +1,237 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
      SPDX-FileCopyrightText: The LineageOS Project
+     SPDX-FileCopyrightText: 2026 The BlazeAOSP Project
      SPDX-License-Identifier: Apache-2.0
 -->
-<com.google.android.setupdesign.GlifLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/setup_wizard_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@drawable/ameos_sky_canvas"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingStart="24dp"
+    android:paddingTop="48dp"
+    android:paddingEnd="24dp"
+    android:paddingBottom="28dp">
 
+    <!-- 95dp 3D Navigation Hero Icon (Figma 4:1308) -->
+    <ImageView
+        android:id="@+id/nav_hero_icon"
+        android:layout_width="95dp"
+        android:layout_height="95dp"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ameos_nav_hero" />
+
+    <!-- Title: Navigation Bar -->
+    <TextView
+        android:id="@+id/nav_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:fontFamily="sans-serif-medium"
+        android:gravity="center"
+        android:letterSpacing="-0.02"
+        android:text="Navigation Bar"
+        android:textColor="#203A51"
+        android:textSize="28sp"
+        android:textStyle="bold" />
+
+    <!-- Subtitle: Choose your preferred Navigation Bar -->
+    <TextView
+        android:id="@+id/nav_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center"
+        android:text="Choose your preferred Navigation Bar"
+        android:textColor="#5B7894"
+        android:textSize="14sp" />
+
+    <!-- #F7FCFF Frosted Card containing two stacked rounded-[48dp] dock preview cards -->
     <LinearLayout
-        android:orientation="vertical"
+        android:id="@+id/page"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        style="@style/SudContentFrame"
-        android:layout_marginTop="@dimen/base_margin_top">
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:layout_weight="1"
+        android:background="@drawable/ameos_frosted_card"
+        android:elevation="2dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="16dp">
 
+        <!-- Card 1: Gestures (4:1316) -->
         <FrameLayout
-            android:id="@+id/page"
+            android:id="@+id/card_nav_gestures"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1">
+            android:layout_marginBottom="12dp"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="6dp">
 
-            <ScrollView
+            <ImageView
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:fillViewport="true">
+                android:contentDescription="Gestures"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ameos_nav_gestures_preview" />
 
-                <LinearLayout
-                    android:orientation="vertical"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent">
+            <!-- Bottom Dock Pill Overlay inside Gestures Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#33081629"
+                android:gravity="bottom|center_horizontal"
+                android:orientation="vertical"
+                android:padding="14dp">
 
-                    <com.airbnb.lottie.LottieAnimationView
-                        android:id="@+id/navigation_illustration"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        app:lottie_rawRes="@raw/lottie_system_nav_fully_gestural"
-                        app:lottie_autoPlay="true"
-                        app:lottie_loop="true" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:shadowColor="#80000000"
+                    android:shadowDx="0"
+                    android:shadowDy="2"
+                    android:shadowRadius="6"
+                    android:text="Gestures"
+                    android:textColor="#FFFFFF"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
 
-                    <RadioGroup
-                        android:id="@+id/navigation_radio_group"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content">
-
-                        <RadioButton
-                            android:id="@+id/radio_gesture"
-                            android:text="@string/gesture_navigation"
-                            android:checked="true"
-                            style="@style/SudRadioButton" />
-
-                        <RadioButton
-                            android:id="@+id/radio_sw_keys"
-                            android:text="@string/navbar_navigation"
-                            style="@style/SudRadioButton" />
-
-                    </RadioGroup>
-
-                    <CheckBox
-                        android:id="@+id/hide_navigation_hint"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/hide_gesture_hint"
-                        android:layout_marginTop="0dp"
-                        android:layout_marginBottom="6dp"
-                        android:layout_marginLeft="-6dp"
-                        android:paddingLeft="18dp"
-                        style="@style/SudCheckBox" />
-                </LinearLayout>
-            </ScrollView>
+                <!-- Home gesture pill bar -->
+                <View
+                    android:layout_width="112dp"
+                    android:layout_height="4.5dp"
+                    android:layout_marginTop="10dp"
+                    android:background="#FFFFFFFF" />
+            </LinearLayout>
         </FrameLayout>
 
-        <org.lineageos.setupwizard.NavigationLayout
-            android:id="@+id/navigation_bar"
+        <!-- Card 2: Buttons (4:1320) -->
+        <FrameLayout
+            android:id="@+id/card_nav_buttons"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="6dp">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="Buttons"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ameos_nav_buttons_preview" />
+
+            <!-- Bottom Dock 3-Button Overlay inside Buttons Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#33081629"
+                android:gravity="bottom|center_horizontal"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:shadowColor="#80000000"
+                    android:shadowDx="0"
+                    android:shadowDy="2"
+                    android:shadowRadius="6"
+                    android:text="Buttons"
+                    android:textColor="#FFFFFF"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="160dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:text="◁"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:text="○"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:text="□"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </FrameLayout>
+
+        <CheckBox
+            android:id="@+id/hide_navigation_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:buttonTint="#017CFE"
+            android:text="@string/hide_gesture_hint"
+            android:textColor="#203A51"
+            android:textSize="12.5sp" />
 
     </LinearLayout>
-</com.google.android.setupdesign.GlifLayout>
 
+    <!-- Bottom Bar: 44dp circular back button + bottom-right filled Continue pill button -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="52dp">
+
+        <ImageButton
+            android:id="@+id/nav_back_button"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/ameos_btn_back_circle"
+            android:contentDescription="Back"
+            android:padding="10dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_chevron_left_24dp"
+            android:tint="#203A51" />
+
+        <Button
+            android:id="@+id/nav_continue_button"
+            android:layout_width="168dp"
+            android:layout_height="48dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/ameos_btn_pill_filled"
+            android:fontFamily="sans-serif-medium"
+            android:text="Continue"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+</LinearLayout>

@@ -21,9 +21,11 @@ import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 
 /**
- * Refined architectural ambient canvas for OOBE.
- * Renders a calm, deeply layered obsidian-slate surface (or warm porcelain in light mode)
- * with subtle diffused light fields and a delicate frosted glass horizon arc.
+ * AmeOS 16 × BlazeAOSP OOBE ambient backdrop canvas.
+ * Supports:
+ * - Welcome Violet Mode (Figma 4:1190): Pure pitch-black (#000000 0%..26.08%) to deep rich purple/violet (#A50AFF 99.76%)
+ * - Dark Cosmos Mode (Figma 4:1514): Deep obsidian cosmos with radial blue glow
+ * - Light Sky Mode (Figma 4:1221): #F6FCFF -> #EDF9FF
  */
 public class LuminousBloomView extends View {
 
@@ -38,6 +40,7 @@ public class LuminousBloomView extends View {
     private float mPhase = 0f;
     private long mLastFrameMs = 0L;
     private boolean mDarkCosmosMode = true;
+    private boolean mWelcomeVioletMode = false;
     private ValueAnimator mAnimator;
     private OnBloomCompleteListener mListener;
 
@@ -64,6 +67,11 @@ public class LuminousBloomView extends View {
 
     public void setDarkCosmosMode(boolean darkCosmosMode) {
         mDarkCosmosMode = darkCosmosMode;
+        invalidate();
+    }
+
+    public void setWelcomeVioletMode(boolean welcomeVioletMode) {
+        mWelcomeVioletMode = welcomeVioletMode;
         invalidate();
     }
 
@@ -107,89 +115,45 @@ public class LuminousBloomView extends View {
         float driftY = (float) Math.cos(mPhase * 0.8f) * (h * 0.015f);
         float reveal = Math.min(1f, 0.35f + mProgress * 0.65f);
 
-        if (mDarkCosmosMode) {
-            // 1. Calm Obsidian-Graphite Architectural Base
+        if (mWelcomeVioletMode) {
+            // Figma 4:1190 exact gradient: linear-gradient(179.39deg, #000000 26.08%, #A50AFF 99.76%)
+            // Pure pitch black in top 26%, transitioning smoothly through dark plum to rich #A50AFF violet at bottom.
+            // NO blue tint!
             mBasePaint.setShader(new LinearGradient(
                     0f, 0f, 0f, h,
-                    new int[]{0xFF0A0D14, 0xFF101521, 0xFF0C1019, 0xFF080A10},
-                    new float[]{0f, 0.38f, 0.75f, 1f},
+                    new int[]{0xFF000000, 0xFF000000, 0xFF1F0235, 0xFF56058A, 0xFFA50AFF},
+                    new float[]{0f, 0.2608f, 0.48f, 0.74f, 1f},
+                    Shader.TileMode.CLAMP));
+            canvas.drawRect(0f, 0f, w, h, mBasePaint);
+        } else if (mDarkCosmosMode) {
+            // Figma 4:1514: Dark radial cosmos backdrop
+            mBasePaint.setShader(new LinearGradient(
+                    0f, 0f, 0f, h,
+                    new int[]{0xFF020408, 0xFF050B18, 0xFF040914, 0xFF010204},
+                    new float[]{0f, 0.42f, 0.78f, 1f},
                     Shader.TileMode.CLAMP));
             canvas.drawRect(0f, 0f, w, h, mBasePaint);
 
-            // 2. Upper Soft Slate-Blue Ambient Light Diffusion
-            float upperCx = w * 0.72f + driftX;
-            float upperCy = h * 0.20f + driftY;
-            float upperR = Math.max(w, h) * 0.52f * reveal;
+            float upperCx = w * 0.50f + driftX;
+            float upperCy = h * 0.42f + driftY;
+            float upperR = Math.max(w, h) * 0.55f * reveal;
             mAmbientPaint.setShader(new RadialGradient(
                     upperCx, upperCy, Math.max(10f, upperR),
-                    new int[]{0x2E3B82F6, 0x141E3A8A, 0x000A0D14},
+                    new int[]{0x44017CFE, 0x1F0050E0, 0x00020408},
                     new float[]{0f, 0.55f, 1f},
                     Shader.TileMode.CLAMP));
             canvas.drawCircle(upperCx, upperCy, upperR, mAmbientPaint);
-
-            // 3. Lower Warm Champagne-Indigo Subtle Ambient Reflection
-            float lowerCx = w * 0.26f - driftX * 0.7f;
-            float lowerCy = h * 0.68f - driftY * 0.6f;
-            float lowerR = Math.max(w, h) * 0.48f * reveal;
-            mAmbientPaint.setShader(new RadialGradient(
-                    lowerCx, lowerCy, Math.max(10f, lowerR),
-                    new int[]{0x226366F1, 0x10312E81, 0x00080A10},
-                    new float[]{0f, 0.6f, 1f},
-                    Shader.TileMode.CLAMP));
-            canvas.drawCircle(lowerCx, lowerCy, lowerR, mAmbientPaint);
-
-            // 4. Subtle Architectural Frosted Glass Horizon Curve
-            float curveTop = h * 0.56f + driftY * 0.5f;
-            mArcPath.reset();
-            mArcPath.moveTo(0f, curveTop + h * 0.06f);
-            mArcPath.cubicTo(
-                    w * 0.34f, curveTop - h * 0.04f,
-                    w * 0.68f, curveTop + h * 0.08f,
-                    w, curveTop - h * 0.01f);
-            mArcPath.lineTo(w, h);
-            mArcPath.lineTo(0f, h);
-            mArcPath.close();
-
-            mArcFillPaint.setShader(new LinearGradient(
-                    0f, curveTop, 0f, h,
-                    new int[]{0x14FFFFFF, 0x0894A3B8, 0x00080A10},
-                    new float[]{0f, 0.45f, 1f},
-                    Shader.TileMode.CLAMP));
-            canvas.drawPath(mArcPath, mArcFillPaint);
-
-            mRimPath.reset();
-            mRimPath.moveTo(0f, curveTop + h * 0.06f);
-            mRimPath.cubicTo(
-                    w * 0.34f, curveTop - h * 0.04f,
-                    w * 0.68f, curveTop + h * 0.08f,
-                    w, curveTop - h * 0.01f);
-            mArcStrokePaint.setShader(new LinearGradient(
-                    0f, curveTop, w, curveTop,
-                    new int[]{0x05FFFFFF, 0x26E2E8F0, 0x05FFFFFF},
-                    new float[]{0f, 0.5f, 1f},
-                    Shader.TileMode.CLAMP));
-            canvas.drawPath(mRimPath, mArcStrokePaint);
         } else {
-            // Light Mode: Serene Alabaster & Pearl Glass Surface
+            // Light Sky Canvas (#F6FCFF -> #EDF9FF)
             mBasePaint.setShader(new LinearGradient(
                     0f, 0f, 0f, h,
-                    new int[]{0xFFF8FAFC, 0xFFF1F5F9, 0xFFEDF2F7},
+                    new int[]{0xFFF6FCFF, 0xFFF1FAFF, 0xFFEDF9FF},
                     new float[]{0f, 0.55f, 1f},
                     Shader.TileMode.CLAMP));
             canvas.drawRect(0f, 0f, w, h, mBasePaint);
-
-            float upperCx = w * 0.70f + driftX;
-            float upperCy = h * 0.22f + driftY;
-            float upperR = Math.max(w, h) * 0.50f;
-            mAmbientPaint.setShader(new RadialGradient(
-                    upperCx, upperCy, Math.max(10f, upperR),
-                    new int[]{0x243B82F6, 0x0E60A5FA, 0x00F8FAFC},
-                    new float[]{0f, 0.6f, 1f},
-                    Shader.TileMode.CLAMP));
-            canvas.drawCircle(upperCx, upperCy, upperR, mAmbientPaint);
         }
 
-        if (isAttachedToWindow()) {
+        if (!mWelcomeVioletMode && isAttachedToWindow()) {
             postInvalidateOnAnimation();
         }
     }

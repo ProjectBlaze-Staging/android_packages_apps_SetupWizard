@@ -10,7 +10,10 @@ package org.lineageos.setupwizard;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.Button;
 import android.widget.TextView;
 
@@ -28,7 +31,10 @@ public class WelcomeActivity extends SubBaseActivity {
 
     private LuminousBloomView mBloomView;
     private View mContentContainer;
+    private View mSkyTransitionSheet;
     private TextView mCurrentLocaleText;
+    private GestureDetector mSwipeUpDetector;
+    private boolean mTransitioning = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,35 +80,63 @@ public class WelcomeActivity extends SubBaseActivity {
         }
 
         mBloomView = findViewById(R.id.luminous_bloom_view);
+        if (mBloomView != null) {
+            mBloomView.setWelcomeVioletMode(true);
+        }
         mContentContainer = findViewById(R.id.welcome_content_container);
+        mSkyTransitionSheet = findViewById(R.id.sky_transition_sheet);
         mCurrentLocaleText = findViewById(R.id.current_locale_text);
 
         Button startButton = findViewById(R.id.start);
-        Button emergButton = findViewById(R.id.emerg_button);
-        Button accessibilityButton = findViewById(R.id.accessibility_button);
+        View emergRow = findViewById(R.id.emerg_row);
+        View emergButton = findViewById(R.id.emerg_button);
+        View accessibilityRow = findViewById(R.id.accessibility_row);
+        View accessibilityButton = findViewById(R.id.accessibility_button);
         View langCard = findViewById(R.id.language_selector_card);
+        View brandLogo = findViewById(R.id.brand_logo);
 
         updateDisplayedLocale();
 
         if (startButton != null) {
             OobeSpringHelper.attachPressSpring(startButton);
-            startButton.setOnClickListener(view -> {
-                OobeSpringHelper.vibrateSuccess(this);
-                onNextPressed();
+            startButton.setOnClickListener(view -> triggerSkySheetAndProceed());
+        }
+
+        mSwipeUpDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                if (e1 != null && e2 != null && (e1.getY() - e2.getY() > 80f) && velocityY < -250f) {
+                    triggerSkySheetAndProceed();
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        if (glifLayout != null) {
+            glifLayout.setOnTouchListener((v, event) -> {
+                mSwipeUpDetector.onTouchEvent(event);
+                return false;
             });
         }
+
+        View.OnClickListener localeClickListener = v -> {
+            OobeSpringHelper.vibrateTick(this);
+            showQuickLocaleDialog();
+        };
 
         if (langCard != null) {
             OobeSpringHelper.attachPressSpring(langCard);
-            langCard.setOnClickListener(v -> {
-                OobeSpringHelper.vibrateTick(this);
-                showQuickLocaleDialog();
-            });
+            langCard.setOnClickListener(localeClickListener);
+        }
+        if (brandLogo != null) {
+            brandLogo.setOnClickListener(localeClickListener);
         }
 
-        if (accessibilityButton != null) {
-            OobeSpringHelper.attachPressSpring(accessibilityButton);
-            accessibilityButton.setOnClickListener(view -> {
+        View a11yTarget = accessibilityRow != null ? accessibilityRow : accessibilityButton;
+        if (a11yTarget != null) {
+            OobeSpringHelper.attachPressSpring(a11yTarget);
+            a11yTarget.setOnClickListener(view -> {
                 OobeSpringHelper.vibrateTick(this);
                 try {
                     Intent intent = new Intent("com.android.settings.ACCESSIBILITY_COLOR_SPACE_SETTINGS");
@@ -118,27 +152,69 @@ public class WelcomeActivity extends SubBaseActivity {
             });
         }
 
-        if (emergButton != null) {
+        View emergTarget = emergRow != null ? emergRow : emergButton;
+        if (emergTarget != null) {
             if (SetupWizardUtils.hasTelephony(this)) {
-                emergButton.setVisibility(View.VISIBLE);
-                OobeSpringHelper.attachPressSpring(emergButton);
-                emergButton.setOnClickListener(view -> {
+                emergTarget.setVisibility(View.VISIBLE);
+                OobeSpringHelper.attachPressSpring(emergTarget);
+                emergTarget.setOnClickListener(view -> {
                     OobeSpringHelper.vibrateTick(this);
                     startSubactivity(new Intent(SetupWizardApp.ACTION_EMERGENCY_DIAL));
                 });
 
                 if (new EmergencyAffordanceManager(this).needsEmergencyAffordance()) {
-                    emergButton.setOnLongClickListener(view -> {
+                    emergTarget.setOnLongClickListener(view -> {
                         new EmergencyAffordanceManager(WelcomeActivity.this).performEmergencyCall();
                         return true;
                     });
                 }
             } else {
-                emergButton.setVisibility(View.GONE);
+                emergTarget.setVisibility(View.GONE);
             }
         }
 
         runEntranceChoreography();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mTransitioning = false;
+        if (mSkyTransitionSheet != null) {
+            mSkyTransitionSheet.setVisibility(View.GONE);
+            mSkyTransitionSheet.setAlpha(0f);
+        }
+        if (mContentContainer != null) {
+            mContentContainer.setAlpha(1f);
+            mContentContainer.setTranslationY(0f);
+        }
+    }
+
+    private void triggerSkySheetAndProceed() {
+        if (mTransitioning) return;
+        mTransitioning = true;
+        OobeSpringHelper.vibrateSuccess(this);
+
+        if (mSkyTransitionSheet != null && mContentContainer != null) {
+            int h = mContentContainer.getHeight() > 0 ? mContentContainer.getHeight() : 1800;
+            mSkyTransitionSheet.setVisibility(View.VISIBLE);
+            mSkyTransitionSheet.setAlpha(1f);
+            mSkyTransitionSheet.setTranslationY(h);
+            mContentContainer.animate()
+                    .alpha(0f)
+                    .translationY(-h * 0.16f)
+                    .setDuration(300)
+                    .setInterpolator(new DecelerateInterpolator(1.5f))
+                    .start();
+            mSkyTransitionSheet.animate()
+                    .translationY(0f)
+                    .setDuration(340)
+                    .setInterpolator(OobeSpringHelper.LAMINAR_SPRING_INTERPOLATOR)
+                    .withEndAction(this::onNextPressed)
+                    .start();
+        } else {
+            onNextPressed();
+        }
     }
 
     private void updateDisplayedLocale() {
@@ -198,6 +274,11 @@ public class WelcomeActivity extends SubBaseActivity {
         if (mBloomView != null) {
             mBloomView.startBloomAnimation(700, null);
         }
+    }
+
+    @Override
+    protected void onSystemBackPressed() {
+        // First screen of OOBE: ignore back press.
     }
 
     @Override

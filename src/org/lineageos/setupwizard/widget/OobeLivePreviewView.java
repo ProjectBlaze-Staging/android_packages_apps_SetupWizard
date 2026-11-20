@@ -7,11 +7,14 @@ package org.lineageos.setupwizard.widget;
 
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.Typeface;
@@ -19,22 +22,78 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 
+import org.lineageos.setupwizard.R;
+
 /**
- * Interactive real-time miniature phone preview for OOBE Theme & Glass Architecture studio.
- * Previews Dark vs Light mode, Glass style (Dark Smoked Crystal, Liquid Glass, Soft Frosted),
- * and Dynamic Island state without using any third-party brand or trademark names.
+ * Real-screenshot interactive preview canvas for ThemeSettingsActivity:
+ * - Stage 1 (MODE_THEME_CAROUSEL): 3-phone carousel displaying real device screenshots
+ *   (Blaze Light, Blaze Dark, Dynamic Monet).
+ * - Stage 2 (MODE_ICON_PREVIEW): Real home screen & dock icon preview for the 3 authentic
+ *   icon architectures (BlazeIcons Modern, Classic Lineage, Adaptive Material You).
+ * - Stage 3 (MODE_SHOWCASE): 5-Page Feature Showcase displaying real device screenshots
+ *   (Control Center Frosted Glass, 120Hz Animation Kitchen, Dynamic Island Media,
+ *   Liquid Glass Float Bar, and 90+ Custom Clock Faces).
  */
 public class OobeLivePreviewView extends View {
 
-    private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    public static final int MODE_THEME_CAROUSEL = 0;
+    public static final int MODE_ICON_PREVIEW = 1;
+    public static final int MODE_SHOWCASE = 2;
+
+    private static final int[] THEME_RES_IDS = new int[]{
+            R.drawable.oobe_real_theme_light,
+            R.drawable.oobe_real_theme_dark,
+            R.drawable.oobe_real_theme_monet
+    };
+
+    private static final String[] THEME_LABELS = new String[]{
+            "Blaze Light",
+            "Blaze Dark",
+            "Dynamic Monet"
+    };
+
+    private static final int[] ICON_CROP_RES_IDS = new int[]{
+            R.drawable.oobe_real_icons_blaze,
+            R.drawable.oobe_real_icons_classic,
+            R.drawable.oobe_real_icons_adaptive
+    };
+
+    private static final int[] ICON_HOME_RES_IDS = new int[]{
+            R.drawable.oobe_real_home_blaze,
+            R.drawable.oobe_real_home_classic,
+            R.drawable.oobe_real_home_adaptive
+    };
+
+    private static final String[] ICON_LABELS = new String[]{
+            "BlazeIcons • Modern Squircle",
+            "Classic • LineageOS Stock",
+            "Adaptive • Material You"
+    };
+
+    private static final int[] SHOWCASE_RES_IDS = new int[]{
+            R.drawable.oobe_real_showcase_0,
+            R.drawable.oobe_real_showcase_1,
+            R.drawable.oobe_real_showcase_2,
+            R.drawable.oobe_real_showcase_3,
+            R.drawable.oobe_real_showcase_4
+    };
+
+    private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Paint mStrokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final RectF mRect = new RectF();
+    private final Rect mSrcRect = new Rect();
+    private final RectF mDstRect = new RectF();
     private final Path mClipPath = new Path();
 
-    private boolean mDarkMode = true;
-    private int mGlassStyle = 3; // 3 = Dark Smoked Crystal, 0 = Liquid Glass, 1 = Soft Frosted
-    private boolean mDynamicIslandEnabled = true;
+    private final Bitmap[] mThemeBitmaps = new Bitmap[3];
+    private final Bitmap[] mIconCropBitmaps = new Bitmap[3];
+    private final Bitmap[] mIconHomeBitmaps = new Bitmap[3];
+    private final Bitmap[] mShowcaseBitmaps = new Bitmap[5];
+
+    private int mPreviewMode = MODE_THEME_CAROUSEL;
+    private int mThemeCarouselIndex = 0; // 0..2
+    private int mIconStyleIndex = 0; // 0..2
+    private int mShowcasePageIndex = 0; // 0..4
     private float mTransitionProgress = 1f;
 
     public OobeLivePreviewView(Context context) {
@@ -52,18 +111,53 @@ public class OobeLivePreviewView extends View {
         mTextPaint.setTextAlign(Paint.Align.CENTER);
     }
 
+    public void setPreviewMode(int mode) {
+        if (mPreviewMode != mode) {
+            mPreviewMode = mode;
+            animateTransition();
+        } else {
+            invalidate();
+        }
+    }
+
+    public void setThemeCarouselIndex(int index) {
+        mThemeCarouselIndex = Math.max(0, Math.min(2, index));
+        animateTransition();
+    }
+
+    public void setIconStyleIndex(int index) {
+        mIconStyleIndex = Math.max(0, Math.min(2, index));
+        animateTransition();
+    }
+
+    public void setShowcasePageIndex(int index) {
+        mShowcasePageIndex = Math.max(0, Math.min(4, index));
+        animateTransition();
+    }
+
     public void updateState(boolean darkMode, int glassStyle, boolean dynamicIslandEnabled) {
-        mDarkMode = darkMode;
-        mGlassStyle = glassStyle;
-        mDynamicIslandEnabled = dynamicIslandEnabled;
-        ValueAnimator anim = ValueAnimator.ofFloat(0.75f, 1f);
-        anim.setDuration(260);
+        animateTransition();
+    }
+
+    private void animateTransition() {
+        ValueAnimator anim = ValueAnimator.ofFloat(0.90f, 1f);
+        anim.setDuration(220);
         anim.setInterpolator(new DecelerateInterpolator());
         anim.addUpdateListener(a -> {
             mTransitionProgress = (float) a.getAnimatedValue();
             invalidate();
         });
         anim.start();
+    }
+
+    private Bitmap getCachedBitmap(Bitmap[] cache, int[] resIds, int index) {
+        if (index < 0 || index >= cache.length) return null;
+        if (cache[index] == null || cache[index].isRecycled()) {
+            try {
+                cache[index] = BitmapFactory.decodeResource(getResources(), resIds[index]);
+            } catch (Throwable ignored) {}
+        }
+        return cache[index];
     }
 
     @Override
@@ -74,125 +168,209 @@ public class OobeLivePreviewView extends View {
         if (w <= 0 || h <= 0) return;
         float d = getResources().getDisplayMetrics().density;
 
-        float cardPad = 6f * d;
-        mRect.set(cardPad, cardPad, w - cardPad, h - cardPad);
-        float cornerRadius = 24f * d;
+        if (mPreviewMode == MODE_THEME_CAROUSEL) {
+            drawThreePhoneCarousel(canvas, w, h, d);
+        } else if (mPreviewMode == MODE_ICON_PREVIEW) {
+            drawRealIconStylePreview(canvas, w, h, d);
+        } else {
+            drawRealShowcaseScreenshot(canvas, w, h, d);
+        }
+    }
+
+    private void drawThreePhoneCarousel(Canvas canvas, float w, float h, float d) {
+        float maxH = Math.min(h - 14f * d, 320f * d);
+        float centerW = Math.min(w * 0.48f, maxH * (440f / 978f));
+        float centerH = centerW * (978f / 440f);
+        if (centerH > maxH) {
+            centerH = maxH;
+            centerW = centerH * (440f / 978f);
+        }
+
+        float sideW = centerW * 0.80f;
+        float sideH = centerH * 0.80f;
+        float cx = w * 0.5f;
+        float cy = h * 0.5f;
+
+        int leftIdx = (mThemeCarouselIndex + 2) % 3;
+        int rightIdx = (mThemeCarouselIndex + 1) % 3;
+
+        RectF leftRect = new RectF(
+                cx - centerW * 0.52f - sideW * 0.62f,
+                cy - sideH * 0.5f,
+                cx - centerW * 0.52f + sideW * 0.38f,
+                cy + sideH * 0.5f);
+        drawPhoneScreenshotCard(canvas, leftRect,
+                getCachedBitmap(mThemeBitmaps, THEME_RES_IDS, leftIdx),
+                THEME_LABELS[leftIdx], false, false, d);
+
+        RectF rightRect = new RectF(
+                cx + centerW * 0.52f - sideW * 0.38f,
+                cy - sideH * 0.5f,
+                cx + centerW * 0.52f + sideW * 0.62f,
+                cy + sideH * 0.5f);
+        drawPhoneScreenshotCard(canvas, rightRect,
+                getCachedBitmap(mThemeBitmaps, THEME_RES_IDS, rightIdx),
+                THEME_LABELS[rightIdx], false, false, d);
+
+        float cw = centerW * mTransitionProgress;
+        float ch = centerH * mTransitionProgress;
+        RectF mainRect = new RectF(cx - cw * 0.5f, cy - ch * 0.5f, cx + cw * 0.5f, cy + ch * 0.5f);
+        drawPhoneScreenshotCard(canvas, mainRect,
+                getCachedBitmap(mThemeBitmaps, THEME_RES_IDS, mThemeCarouselIndex),
+                THEME_LABELS[mThemeCarouselIndex], true, false, d);
+    }
+
+    private void drawRealIconStylePreview(Canvas canvas, float w, float h, float d) {
+        int idx = Math.max(0, Math.min(2, mIconStyleIndex));
+        Bitmap cropBmp = getCachedBitmap(mIconCropBitmaps, ICON_CROP_RES_IDS, idx);
+        Bitmap homeBmp = getCachedBitmap(mIconHomeBitmaps, ICON_HOME_RES_IDS, idx);
+
+        float cardW = Math.min(w - 8f * d, 340f * d) * mTransitionProgress;
+        float cardH = Math.min(h - 12f * d, cardW * (498f / 640f));
+        if (cardH * (640f / 498f) < cardW) {
+            cardW = cardH * (640f / 498f);
+        }
+        float cx = w * 0.5f;
+        float cy = h * 0.5f;
+
+        mDstRect.set(cx - cardW * 0.5f, cy - cardH * 0.5f, cx + cardW * 0.5f, cy + cardH * 0.5f);
+        float radius = 26f * d;
+
+        // Outer soft shadow
+        mPaint.setStyle(Paint.Style.FILL);
+        mPaint.setColor(0x24001A36);
+        RectF shadowRect = new RectF(mDstRect.left, mDstRect.top + 4f * d,
+                mDstRect.right, mDstRect.bottom + 4f * d);
+        canvas.drawRoundRect(shadowRect, radius, radius, mPaint);
 
         int save = canvas.save();
         mClipPath.reset();
-        mClipPath.addRoundRect(mRect, cornerRadius, cornerRadius, Path.Direction.CW);
+        mClipPath.addRoundRect(mDstRect, radius, radius, Path.Direction.CW);
         canvas.clipPath(mClipPath);
 
-        // 1. Wallpaper / Ambient Surface Preview
-        int[] bgColors;
-        if (mDarkMode) {
-            if (mGlassStyle == 3) {
-                bgColors = new int[]{0xFF0B0E17, 0xFF141B2D, 0xFF0F1420};
-            } else if (mGlassStyle == 0) {
-                bgColors = new int[]{0xFF0E1528, 0xFF1C2848, 0xFF131D36};
-            } else {
-                bgColors = new int[]{0xFF11151E, 0xFF1A202E, 0xFF131822};
-            }
+        Bitmap target = cropBmp != null ? cropBmp : homeBmp;
+        if (target != null && !target.isRecycled()) {
+            drawCenterCropBitmap(canvas, target, mDstRect);
         } else {
-            bgColors = new int[]{0xFFE8F0FE, 0xFFF1F5F9, 0xFFE2E8F0};
-        }
-        mPaint.setShader(new LinearGradient(
-                0f, mRect.top, 0f, mRect.bottom,
-                bgColors, new float[]{0f, 0.52f, 1f}, Shader.TileMode.CLAMP));
-        canvas.drawRect(mRect, mPaint);
-        mPaint.setShader(null);
-
-        // 2. Top Dynamic Island / Status Bar Capsule
-        float islandW = (mDynamicIslandEnabled ? 132f : 56f) * d * mTransitionProgress;
-        float islandH = (mDynamicIslandEnabled ? 24f : 14f) * d;
-        float islandTop = mRect.top + 10f * d;
-        RectF islandRect = new RectF((w - islandW) * 0.5f, islandTop, (w + islandW) * 0.5f, islandTop + islandH);
-        mPaint.setColor(0xEE080B11);
-        canvas.drawRoundRect(islandRect, islandH * 0.5f, islandH * 0.5f, mPaint);
-
-        if (mDynamicIslandEnabled) {
-            mPaint.setColor(0xFF3B82F6);
-            canvas.drawCircle(islandRect.left + 12f * d, islandRect.centerY(), 4f * d, mPaint);
-            mTextPaint.setColor(Color.WHITE);
-            mTextPaint.setTextSize(9.5f * d);
-            canvas.drawText("Canlı Etkinlik • 02:45", islandRect.centerX() + 6f * d, islandRect.centerY() + 3.3f * d, mTextPaint);
+            mPaint.setColor(0xFF0F172A);
+            canvas.drawRect(mDstRect, mPaint);
         }
 
-        // 3. Glass Quick Settings & Media Card Preview
-        float glassLeft = mRect.left + 16f * d;
-        float glassRight = mRect.right - 16f * d;
-        float glassTop = islandRect.bottom + 12f * d;
-        float glassBottom = mRect.bottom - 48f * d;
-        RectF glassRect = new RectF(glassLeft, glassTop, glassRight, glassBottom);
-
-        int glassFill;
-        int glassRim;
-        String styleBadge;
-        if (mGlassStyle == 3) {
-            glassFill = mDarkMode ? 0xBD101522 : 0xD8FFFFFF;
-            glassRim = mDarkMode ? 0x5093C5FD : 0x603B82F6;
-            styleBadge = "Koyu Kristal Cam";
-        } else if (mGlassStyle == 0) {
-            glassFill = mDarkMode ? 0xA8182238 : 0xE0FFFFFF;
-            glassRim = mDarkMode ? 0x66E2E8F0 : 0x8094A3B8;
-            styleBadge = "Akıcı Liquid Glass";
-        } else {
-            glassFill = mDarkMode ? 0xC81A202C : 0xEEFFFFFF;
-            glassRim = mDarkMode ? 0x33FFFFFF : 0x4064748B;
-            styleBadge = "Yumuşak Buzlu Cam";
-        }
-
-        mPaint.setColor(glassFill);
-        canvas.drawRoundRect(glassRect, 18f * d, 18f * d, mPaint);
+        // Top pill badge showing current real icon style name
+        float pillW = Math.min(cardW * 0.78f, 220f * d);
+        float pillH = 26f * d;
+        RectF badgeRect = new RectF(cx - pillW * 0.5f, mDstRect.top + 10f * d,
+                cx + pillW * 0.5f, mDstRect.top + 10f * d + pillH);
+        mPaint.setColor(0xCC0B1324);
+        canvas.drawRoundRect(badgeRect, pillH * 0.5f, pillH * 0.5f, mPaint);
         mStrokePaint.setStrokeWidth(1.2f * d);
-        mStrokePaint.setColor(glassRim);
-        canvas.drawRoundRect(glassRect, 18f * d, 18f * d, mStrokePaint);
+        mStrokePaint.setColor(0x8802C9FF);
+        canvas.drawRoundRect(badgeRect, pillH * 0.5f, pillH * 0.5f, mStrokePaint);
 
-        // Mini QS Pills inside Glass Card
-        float pillTop = glassRect.top + 10f * d;
-        float pillH = 24f * d;
-        float pillGap = 8f * d;
-        float pillW = (glassRect.width() - 24f * d - pillGap) * 0.5f;
-
-        RectF p1 = new RectF(glassRect.left + 12f * d, pillTop, glassRect.left + 12f * d + pillW, pillTop + pillH);
-        mPaint.setColor(0xFF2563EB);
-        canvas.drawRoundRect(p1, pillH * 0.5f, pillH * 0.5f, mPaint);
+        mTextPaint.setTextSize(11.5f * d);
         mTextPaint.setColor(Color.WHITE);
-        mTextPaint.setTextSize(9.5f * d);
-        canvas.drawText("Wi-Fi • 5G", p1.centerX(), p1.centerY() + 3.2f * d, mTextPaint);
-
-        RectF p2 = new RectF(p1.right + pillGap, pillTop, p1.right + pillGap + pillW, pillTop + pillH);
-        mPaint.setColor(mDarkMode ? 0x38FFFFFF : 0x180F172A);
-        canvas.drawRoundRect(p2, pillH * 0.5f, pillH * 0.5f, mPaint);
-        mTextPaint.setColor(mDarkMode ? 0xFFE2E8F0 : 0xFF1E293B);
-        canvas.drawText(styleBadge, p2.centerX(), p2.centerY() + 3.2f * d, mTextPaint);
-
-        // 4. Bottom Floating Glass Tab Bar
-        float dockW = glassRect.width();
-        float dockH = 28f * d;
-        float dockTop = mRect.bottom - 10f * d - dockH;
-        RectF dockRect = new RectF(glassLeft, dockTop, glassRight, dockTop + dockH);
-        mPaint.setColor(glassFill);
-        canvas.drawRoundRect(dockRect, dockH * 0.5f, dockH * 0.5f, mPaint);
-        mStrokePaint.setColor(glassRim);
-        canvas.drawRoundRect(dockRect, dockH * 0.5f, dockH * 0.5f, mStrokePaint);
-
-        RectF activeLens = new RectF(dockRect.left + 6f * d, dockRect.top + 3.5f * d,
-                dockRect.left + dockW * 0.36f, dockRect.bottom - 3.5f * d);
-        mPaint.setColor(mDarkMode ? 0x333B82F6 : 0x262563EB);
-        canvas.drawRoundRect(activeLens, activeLens.height() * 0.5f, activeLens.height() * 0.5f, mPaint);
-
-        mTextPaint.setColor(mDarkMode ? Color.WHITE : 0xFF1E3A8A);
-        mTextPaint.setTextSize(9f * d);
-        canvas.drawText(mDarkMode ? "Karanlık Tema" : "Aydınlık Tema", activeLens.centerX(), activeLens.centerY() + 3f * d, mTextPaint);
-
-        mTextPaint.setColor(mDarkMode ? 0x99CBD5E1 : 0x99475569);
-        canvas.drawText("Yüzey & Cam Önizlemesi", dockRect.left + dockW * 0.68f, dockRect.centerY() + 3f * d, mTextPaint);
+        canvas.drawText(ICON_LABELS[idx], cx, badgeRect.centerY() + 4f * d, mTextPaint);
 
         canvas.restoreToCount(save);
 
-        mStrokePaint.setStrokeWidth(1.4f * d);
-        mStrokePaint.setColor(mDarkMode ? 0x38FFFFFF : 0x3364748B);
-        canvas.drawRoundRect(mRect, cornerRadius, cornerRadius, mStrokePaint);
+        // Specular cyan selection border
+        mStrokePaint.setStrokeWidth(3.2f * d);
+        mStrokePaint.setColor(0xFF02C9FF);
+        canvas.drawRoundRect(mDstRect, radius, radius, mStrokePaint);
+    }
+
+    private void drawRealShowcaseScreenshot(Canvas canvas, float w, float h, float d) {
+        int page = Math.max(0, Math.min(4, mShowcasePageIndex));
+        Bitmap bmp = getCachedBitmap(mShowcaseBitmaps, SHOWCASE_RES_IDS, page);
+
+        float maxH = Math.min(h - 10f * d, 360f * d);
+        float phoneW = Math.min(w * 0.64f, maxH * (500f / 1111f));
+        float phoneH = phoneW * (1111f / 500f);
+        if (phoneH > maxH) {
+            phoneH = maxH;
+            phoneW = phoneH * (500f / 1111f);
+        }
+
+        float cw = phoneW * mTransitionProgress;
+        float ch = phoneH * mTransitionProgress;
+        float cx = w * 0.5f;
+        float cy = h * 0.5f;
+
+        // Ambient cyan/blue glow behind phone frame on the dark showcase canvas
+        mPaint.setStyle(Paint.Style.FILL);
+        mPaint.setColor(0x2202C9FF);
+        canvas.drawCircle(cx, cy, Math.max(cw, ch) * 0.54f, mPaint);
+
+        RectF rect = new RectF(cx - cw * 0.5f, cy - ch * 0.5f, cx + cw * 0.5f, cy + ch * 0.5f);
+        drawPhoneScreenshotCard(canvas, rect, bmp, null, true, true, d);
+    }
+
+    private void drawPhoneScreenshotCard(Canvas canvas, RectF rect, Bitmap bmp,
+            String bottomLabel, boolean active, boolean darkCanvas, float d) {
+        float radius = (active ? 24f : 18f) * d;
+
+        // Shadow / Bezel backing
+        mPaint.setStyle(Paint.Style.FILL);
+        mPaint.setColor(active ? 0x33001E42 : 0x1A001E42);
+        RectF shadow = new RectF(rect.left, rect.top + 4f * d, rect.right, rect.bottom + 4f * d);
+        canvas.drawRoundRect(shadow, radius, radius, mPaint);
+
+        int save = canvas.save();
+        mClipPath.reset();
+        mClipPath.addRoundRect(rect, radius, radius, Path.Direction.CW);
+        canvas.clipPath(mClipPath);
+
+        if (bmp != null && !bmp.isRecycled()) {
+            mPaint.setAlpha(active ? 255 : 145);
+            drawCenterCropBitmap(canvas, bmp, rect);
+            mPaint.setAlpha(255);
+        } else {
+            mPaint.setColor(0xFF1E293B);
+            canvas.drawRect(rect, mPaint);
+        }
+
+        if (!active) {
+            mPaint.setColor(0x44EDF9FF);
+            canvas.drawRect(rect, mPaint);
+        }
+
+        if (bottomLabel != null && active) {
+            float gradH = 38f * d;
+            mPaint.setShader(new LinearGradient(0f, rect.bottom - gradH, 0f, rect.bottom,
+                    0x00000000, 0xCC060D1A, Shader.TileMode.CLAMP));
+            canvas.drawRect(rect.left, rect.bottom - gradH, rect.right, rect.bottom, mPaint);
+            mPaint.setShader(null);
+
+            mTextPaint.setTextSize(11f * d);
+            mTextPaint.setColor(Color.WHITE);
+            canvas.drawText(bottomLabel, rect.centerX(), rect.bottom - 10f * d, mTextPaint);
+        }
+
+        canvas.restoreToCount(save);
+
+        // Phone frame border
+        mStrokePaint.setStrokeWidth((active ? 3.2f : 1.5f) * d);
+        mStrokePaint.setColor(active ? 0xFF02C9FF : (darkCanvas ? 0x55FFFFFF : 0x8893C5FD));
+        canvas.drawRoundRect(rect, radius, radius, mStrokePaint);
+    }
+
+    private void drawCenterCropBitmap(Canvas canvas, Bitmap bmp, RectF dst) {
+        int bw = bmp.getWidth();
+        int bh = bmp.getHeight();
+        if (bw <= 0 || bh <= 0) return;
+
+        float dstAspect = dst.width() / dst.height();
+        float bmpAspect = (float) bw / (float) bh;
+
+        if (bmpAspect > dstAspect) {
+            int cropW = Math.round(bh * dstAspect);
+            int x0 = (bw - cropW) / 2;
+            mSrcRect.set(x0, 0, x0 + cropW, bh);
+        } else {
+            int cropH = Math.round(bw / dstAspect);
+            int y0 = (bh - cropH) / 2;
+            mSrcRect.set(0, y0, bw, y0 + cropH);
+        }
+        canvas.drawBitmap(bmp, mSrcRect, dst, mPaint);
     }
 }

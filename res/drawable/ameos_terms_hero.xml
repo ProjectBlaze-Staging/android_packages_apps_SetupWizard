@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <!-- 3D Document / Shield Hero Icon for Terms & Services -->
+    <path
+        android:pathData="M24,12h34l18,18v50c0,4.42 -3.58,8 -8,8H24c-4.42,0 -8,-3.58 -8,-8V20c0,-4.42 3.58,-8 8,-8z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="46"
+                android:startY="12"
+                android:endX="46"
+                android:endY="88"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF02C9FF" />
+                <item android:offset="1.0" android:color="#FF015BFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:fillColor="#66FFFFFF"
+        android:pathData="M58,12v14c0,2.21 1.79,4 4,4h14L58,12z" />
+    <path
+        android:fillColor="#E6FFFFFF"
+        android:pathData="M28,42h36v5H28zM28,54h36v5H28zM28,66h24v5H28z" />
+</vector>
